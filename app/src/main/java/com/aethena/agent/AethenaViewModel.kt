@@ -36,7 +36,7 @@ class AethenaViewModel(application: Application) : AndroidViewModel(application)
     var input by mutableStateOf("")
     var mode by mutableStateOf("Freeform")
     var busy by mutableStateOf(false)
-    var status by mutableStateOf("Ready")
+    var status by mutableStateOf("Choose a brain in Settings")
     var speechText by mutableStateOf<String?>(null)
         private set
 
@@ -52,10 +52,12 @@ class AethenaViewModel(application: Application) : AndroidViewModel(application)
         private set
 
     init {
-        messages += UiMessage(
-            role = "assistant",
-            text = "I am Aethena. Connect a local or hosted model in Settings, then speak or type what you need."
-        )
+        val setupText = if (baseUrl.isBlank() || model.isBlank()) {
+            "I am Aethena. Open Settings and press Hugging Face or OpenAI, enter the matching token, then press Test connection."
+        } else {
+            "I am Aethena. My saved brain connection is ready to test."
+        }
+        messages += UiMessage(role = "assistant", text = setupText)
     }
 
     fun send() {
@@ -78,15 +80,15 @@ class AethenaViewModel(application: Application) : AndroidViewModel(application)
                 if (settings.speakReplies) speechText = reply
 
                 if (result.actions.isEmpty()) {
-                    status = "Ready"
+                    status = "Online"
                 } else {
                     val outcomes = result.actions.map { executor.execute(it) }
                     status = outcomes.joinToString("\n")
                 }
             } catch (error: Throwable) {
                 val message = error.message ?: error.javaClass.simpleName
-                messages += UiMessage(role = "assistant", text = "Connection or model error: $message")
-                status = "Error"
+                messages += UiMessage(role = "assistant", text = "Brain connection: $message")
+                status = "Open Settings"
             } finally {
                 busy = false
             }
@@ -118,23 +120,49 @@ class AethenaViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun saveSettings() {
-        settings.baseUrl = baseUrl
-        settings.apiKey = apiKey
-        settings.model = model
-        settings.memory = memory
-        settings.speakReplies = speakReplies
-        status = "Encrypted settings saved."
+        persistSettings()
+        status = "Encrypted settings saved. Press Test connection."
+    }
+
+    fun testConnection() {
+        if (busy) return
+        persistSettings()
+        busy = true
+        status = "Testing brain connection…"
+        viewModelScope.launch {
+            try {
+                val result = brain.test(settings)
+                status = "Aethena brain online"
+                messages += UiMessage(role = "assistant", text = result)
+                if (settings.speakReplies) speechText = result
+            } catch (error: Throwable) {
+                val message = error.message ?: error.javaClass.simpleName
+                status = message
+            } finally {
+                busy = false
+            }
+        }
+    }
+
+    fun useHuggingFacePreset() {
+        baseUrl = "https://router.huggingface.co/v1"
+        model = "Qwen/Qwen3-4B-Thinking-2507:cheapest"
+        apiKey = ""
+        status = "Paste a Hugging Face token, then test."
     }
 
     fun useLocalPreset() {
         baseUrl = "http://127.0.0.1:8080/v1"
         model = "local-model"
         apiKey = ""
+        status = "Local mode needs a llama.cpp server running on port 8080."
     }
 
     fun useOpenAiPreset() {
         baseUrl = "https://api.openai.com/v1"
         model = "gpt-4.1-mini"
+        apiKey = ""
+        status = "Paste your OpenAI key, then test."
     }
 
     fun shareLatestZip() {
@@ -154,5 +182,13 @@ class AethenaViewModel(application: Application) : AndroidViewModel(application)
 
     fun consumeSpeech() {
         speechText = null
+    }
+
+    private fun persistSettings() {
+        settings.baseUrl = baseUrl
+        settings.apiKey = apiKey
+        settings.model = model
+        settings.memory = memory
+        settings.speakReplies = speakReplies
     }
 }
