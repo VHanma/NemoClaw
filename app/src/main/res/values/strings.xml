@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Aethena</string>
+    <string name="accessibility_service_description">Lets Aethena read visible interface text and perform commands you explicitly give, such as tapping, typing, scrolling, Back, and Home.</string>
+</resources>
