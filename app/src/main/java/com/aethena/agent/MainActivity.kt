@@ -52,7 +52,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import java.util.Locale
@@ -317,7 +316,7 @@ private fun CodeTab(vm: AethenaViewModel) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text("Architect workspace", style = MaterialTheme.typography.headlineSmall)
-        Text("Describe the finished project. Aethena asks the connected model for every file and packages them into one ZIP.")
+        Text("Describe the finished project. The selected local uncensored model creates every file and packages them into one ZIP.")
         OutlinedTextField(
             value = vm.projectName,
             onValueChange = { vm.projectName = it },
@@ -347,50 +346,50 @@ private fun SettingsTab(vm: AethenaViewModel) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text("Connect Aethena's brain", style = MaterialTheme.typography.headlineSmall)
-        Text("Easiest: press Hugging Face, paste an HF token, save, then test. Your token stays encrypted on this phone.")
+        Text("Strict Uncensored Mode", style = MaterialTheme.typography.headlineSmall)
+        Text("Local approved abliterated models only. Remote providers, ordinary models, API tokens, and silent fallbacks are blocked.")
 
-        Button(onClick = vm::useHuggingFacePreset, modifier = Modifier.fillMaxWidth()) {
-            Text("Hugging Face")
+        Text("Choose Aethena's brain", style = MaterialTheme.typography.titleMedium)
+        Button(onClick = vm::useGeneralPreset, modifier = Modifier.fillMaxWidth()) {
+            Text("Freeform · General conversation")
         }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = vm::useOpenAiPreset, modifier = Modifier.weight(1f)) { Text("OpenAI") }
-            Button(onClick = vm::useLocalPreset, modifier = Modifier.weight(1f)) { Text("Local advanced") }
+        Button(onClick = vm::useThinkerPreset, modifier = Modifier.fillMaxWidth()) {
+            Text("Deep Thinker · Philosophy and reasoning")
         }
-        Button(
-            onClick = { vm.quickAction("open_uri", "https://huggingface.co/settings/tokens") },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Create or manage HF token")
+        Button(onClick = vm::useCoderPreset, modifier = Modifier.fillMaxWidth()) {
+            Text("Architect · Coding")
+        }
+
+        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF161D2E))) {
+            Column(Modifier.padding(12.dp)) {
+                Text("Selected: ${vm.activeProfileName}", style = MaterialTheme.typography.titleMedium)
+                Text(vm.activeProfileRepository)
+            }
+        }
+
+        Button(onClick = vm::openSelectedModelPage, modifier = Modifier.fillMaxWidth()) {
+            Text("Open selected GGUF model page")
         }
 
         OutlinedTextField(
             value = vm.baseUrl,
             onValueChange = { vm.baseUrl = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Provider URL") },
+            label = { Text("Locked local server URL") },
             singleLine = true
         )
         OutlinedTextField(
             value = vm.model,
             onValueChange = { vm.model = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Model ID") },
-            singleLine = true
-        )
-        OutlinedTextField(
-            value = vm.apiKey,
-            onValueChange = { vm.apiKey = it },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("HF token or API key") },
-            visualTransformation = PasswordVisualTransformation(),
+            label = { Text("Approved local model ID") },
             singleLine = true
         )
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = vm::saveSettings, modifier = Modifier.weight(1f)) { Text("Save") }
             Button(onClick = vm::testConnection, enabled = !vm.busy, modifier = Modifier.weight(1f)) {
-                Text(if (vm.busy) "Testing…" else "Test connection")
+                Text(if (vm.busy) "Testing…" else "Test local brain")
             }
         }
 
@@ -408,8 +407,7 @@ private fun SettingsTab(vm: AethenaViewModel) {
         }
 
         Spacer(Modifier.height(10.dp))
-        Text("Hugging Face setup", style = MaterialTheme.typography.titleMedium)
-        Text("Create a fine-grained token with permission to make calls to Inference Providers. The preset uses Hugging Face's OpenAI-compatible router. You may replace the model ID with another model served by a provider.")
-        Text("Local mode only works after a llama.cpp server is running on this phone. It is not automatically bundled into this APK.")
+        Text("Guarantee boundary", style = MaterialTheme.typography.titleMedium)
+        Text("Aethena will reject remote URLs and model IDs outside the approved uncensored list. The exact GGUF must run through a local llama.cpp-compatible server on this phone. No other model is used as backup.")
     }
 }
