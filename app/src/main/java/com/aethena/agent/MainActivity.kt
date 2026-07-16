@@ -22,7 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -48,7 +48,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -281,12 +280,12 @@ private fun OperateTab(vm: AethenaViewModel) {
         ActionButton("Enable screen reading and tapping") { vm.quickAction("open_accessibility_settings") }
         ActionButton("Enable notification memory") { vm.quickAction("open_notification_settings") }
         ActionButton("Allow floating Aethena orb") { vm.quickAction("open_overlay_settings") }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { vm.quickAction("start_orb") }, modifier = Modifier.weight(1f)) { Text("Start orb") }
             Button(onClick = { vm.quickAction("stop_orb") }, modifier = Modifier.weight(1f)) { Text("Stop orb") }
         }
         Text("Quick controls", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { vm.quickAction("back") }, modifier = Modifier.weight(1f)) { Text("Back") }
             Button(onClick = { vm.quickAction("home") }, modifier = Modifier.weight(1f)) { Text("Home") }
             Button(onClick = { vm.quickAction("recents") }, modifier = Modifier.weight(1f)) { Text("Recents") }
@@ -351,7 +350,7 @@ private fun SettingsTab(vm: AethenaViewModel) {
     ) {
         Text("Model connection", style = MaterialTheme.typography.headlineSmall)
         Text("Aethena accepts local llama.cpp, Hugging Face endpoints, or any OpenAI-compatible server.")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = vm::useLocalPreset, modifier = Modifier.weight(1f)) { Text("Local") }
             Button(onClick = vm::useOpenAiPreset, modifier = Modifier.weight(1f)) { Text("OpenAI backup") }
         }
