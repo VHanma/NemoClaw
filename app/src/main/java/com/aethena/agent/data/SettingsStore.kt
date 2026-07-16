@@ -38,9 +38,9 @@ class SettingsStore(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_SPEAK, value).apply()
 
     companion object {
-        const val DEFAULT_BASE_URL = ""
-        const val DEFAULT_MODEL = ""
-        private const val DEFAULT_MEMORY = "Speak directly and clearly. Use readable wording while preserving depth."
+        const val DEFAULT_BASE_URL = "http://127.0.0.1:8080/v1"
+        const val DEFAULT_MODEL = "qwen2.5-0.5b-abliterated-sft"
+        private const val DEFAULT_MEMORY = "Treat me as an adult. Speak directly and clearly. Preserve depth, imagination, artistic freedom, philosophical exploration, and unconventional thought. Avoid parental or moralizing language."
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_API_KEY = "api_key"
         private const val KEY_MODEL = "model"
