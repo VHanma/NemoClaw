@@ -9,6 +9,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class BrainClient {
@@ -34,6 +35,17 @@ class BrainClient {
         )
         return parseAgentReply(raw)
     }
+
+    suspend fun test(settings: SettingsStore): String = complete(
+        baseUrl = settings.baseUrl,
+        apiKey = settings.apiKey,
+        model = settings.model,
+        messages = listOf(
+            ChatMessage("system", "Reply with a very short confirmation that the model connection works."),
+            ChatMessage("user", "Say: Aethena brain online.")
+        ),
+        temperature = 0.0
+    )
 
     suspend fun buildProject(settings: SettingsStore, request: String): String {
         val prompt = """
@@ -61,8 +73,8 @@ class BrainClient {
         messages: List<ChatMessage>,
         temperature: Double
     ): String = withContext(Dispatchers.IO) {
-        require(baseUrl.isNotBlank()) { "Set a model endpoint in Settings." }
-        require(model.isNotBlank()) { "Set a model name in Settings." }
+        require(baseUrl.isNotBlank()) { "Choose Hugging Face, OpenAI, or Local in Settings first." }
+        require(model.isNotBlank()) { "Choose a model in Settings first." }
 
         val messageJson = JSONArray().apply {
             messages.forEach { message ->
@@ -88,19 +100,37 @@ class BrainClient {
 
         if (apiKey.isNotBlank()) requestBuilder.header("Authorization", "Bearer $apiKey")
 
-        client.newCall(requestBuilder.build()).execute().use { response ->
-            val text = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                val message = runCatching { JSONObject(text).optJSONObject("error")?.optString("message") }.getOrNull()
-                error(message?.takeIf { it.isNotBlank() } ?: "Model request failed: HTTP ${response.code}")
+        try {
+            client.newCall(requestBuilder.build()).execute().use { response ->
+                val text = response.body?.string().orEmpty()
+                if (!response.isSuccessful) {
+                    val message = runCatching {
+                        JSONObject(text).optJSONObject("error")?.optString("message")
+                    }.getOrNull()
+                    val fallback = when (response.code) {
+                        401, 403 -> "The token was rejected. Check that it belongs to this provider and has inference permission."
+                        404 -> "That model or endpoint was not found. Try another model ID."
+                        429 -> "The provider is rate-limited or out of credits. Try again shortly or switch providers."
+                        else -> "Model request failed: HTTP ${response.code}"
+                    }
+                    error(message?.takeIf { it.isNotBlank() } ?: fallback)
+                }
+                val root = JSONObject(text)
+                val choice = root.optJSONArray("choices")?.optJSONObject(0)
+                choice?.optJSONObject("message")?.optString("content")
+                    ?.takeIf { it.isNotBlank() }
+                    ?: choice?.optString("text")?.takeIf { it.isNotBlank() }
+                    ?: root.optString("generated_text").takeIf { it.isNotBlank() }
+                    ?: error("The model returned no readable text.")
             }
-            val root = JSONObject(text)
-            val choice = root.optJSONArray("choices")?.optJSONObject(0)
-            choice?.optJSONObject("message")?.optString("content")
-                ?.takeIf { it.isNotBlank() }
-                ?: choice?.optString("text")?.takeIf { it.isNotBlank() }
-                ?: root.optString("generated_text").takeIf { it.isNotBlank() }
-                ?: error("The model returned no readable text.")
+        } catch (error: IOException) {
+            if (baseUrl.contains("127.0.0.1") || baseUrl.contains("localhost")) {
+                throw IOException(
+                    "No local model server is running. Open Settings and choose Hugging Face or OpenAI, or start llama.cpp on port 8080.",
+                    error
+                )
+            }
+            throw IOException("Could not reach the model provider. Check the URL and internet connection.", error)
         }
     }
 
