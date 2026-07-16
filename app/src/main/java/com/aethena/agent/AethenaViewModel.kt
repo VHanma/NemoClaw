@@ -13,6 +13,7 @@ import com.aethena.agent.automation.ActionExecutor
 import com.aethena.agent.brain.AgentAction
 import com.aethena.agent.brain.BrainClient
 import com.aethena.agent.brain.ChatMessage
+import com.aethena.agent.brain.UncensoredModelCatalog
 import com.aethena.agent.coding.ProjectWorkspace
 import com.aethena.agent.data.SettingsStore
 import kotlinx.coroutines.launch
@@ -36,7 +37,7 @@ class AethenaViewModel(application: Application) : AndroidViewModel(application)
     var input by mutableStateOf("")
     var mode by mutableStateOf("Freeform")
     var busy by mutableStateOf(false)
-    var status by mutableStateOf("Choose a brain in Settings")
+    var status by mutableStateOf("Strict uncensored mode")
     var speechText by mutableStateOf<String?>(null)
         private set
 
@@ -51,22 +52,33 @@ class AethenaViewModel(application: Application) : AndroidViewModel(application)
     var latestZip by mutableStateOf<File?>(null)
         private set
 
+    val activeProfileName: String
+        get() = UncensoredModelCatalog.find(model)?.displayName ?: "No approved model selected"
+
+    val activeProfileRepository: String
+        get() = UncensoredModelCatalog.find(model)?.repository.orEmpty()
+
     init {
-        val setupText = if (baseUrl.isBlank() || model.isBlank()) {
-            "I am Aethena. Open Settings and press Hugging Face or OpenAI, enter the matching token, then press Test connection."
-        } else {
-            "I am Aethena. My saved brain connection is ready to test."
-        }
-        messages += UiMessage(role = "assistant", text = setupText)
+        if (!UncensoredModelCatalog.isAllowed(model)) useGeneralPreset()
+        messages += UiMessage(
+            role = "assistant",
+            text = "I am Aethena in Strict Uncensored Mode. I only connect to approved local abliterated models. There is no censored fallback and no remote provider."
+        )
     }
 
     fun send() {
         val text = input.trim()
         if (text.isBlank() || busy) return
+        strictConfigurationError()?.let { error ->
+            status = error
+            messages += UiMessage(role = "assistant", text = error)
+            return
+        }
+
         input = ""
         messages += UiMessage(role = "user", text = text)
         busy = true
-        status = "Thinking…"
+        status = "Thinking locally…"
 
         viewModelScope.launch {
             try {
@@ -75,20 +87,20 @@ class AethenaViewModel(application: Application) : AndroidViewModel(application)
                     .takeLast(18)
                     .map { ChatMessage(it.role, it.text) }
                 val result = brain.ask(settings, history, text, mode)
-                val reply = result.reply.ifBlank { "I completed the request but received an empty reply." }
+                val reply = result.reply.ifBlank { "The local model returned an empty reply." }
                 messages += UiMessage(role = "assistant", text = reply)
                 if (settings.speakReplies) speechText = reply
 
                 if (result.actions.isEmpty()) {
-                    status = "Online"
+                    status = "Local uncensored brain online"
                 } else {
                     val outcomes = result.actions.map { executor.execute(it) }
                     status = outcomes.joinToString("\n")
                 }
             } catch (error: Throwable) {
                 val message = error.message ?: error.javaClass.simpleName
-                messages += UiMessage(role = "assistant", text = "Brain connection: $message")
-                status = "Open Settings"
+                messages += UiMessage(role = "assistant", text = "Local brain connection: $message")
+                status = "Local model offline"
             } finally {
                 busy = false
             }
@@ -104,8 +116,13 @@ class AethenaViewModel(application: Application) : AndroidViewModel(application)
     fun buildProject() {
         val request = codeRequest.trim()
         if (request.isBlank() || busy) return
+        strictConfigurationError()?.let { error ->
+            status = error
+            return
+        }
+
         busy = true
-        status = "Architect is creating complete files…"
+        status = "Aethena Architect is creating complete files locally…"
         viewModelScope.launch {
             try {
                 val output = brain.buildProject(settings, request)
@@ -120,49 +137,50 @@ class AethenaViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun saveSettings() {
+        strictConfigurationError()?.let { error ->
+            status = error
+            return
+        }
         persistSettings()
-        status = "Encrypted settings saved. Press Test connection."
+        status = "Strict uncensored settings saved."
     }
 
     fun testConnection() {
         if (busy) return
+        strictConfigurationError()?.let { error ->
+            status = error
+            return
+        }
         persistSettings()
         busy = true
-        status = "Testing brain connection…"
+        status = "Testing approved local model…"
         viewModelScope.launch {
             try {
                 val result = brain.test(settings)
-                status = "Aethena brain online"
+                status = "Verified local connection"
                 messages += UiMessage(role = "assistant", text = result)
                 if (settings.speakReplies) speechText = result
             } catch (error: Throwable) {
-                val message = error.message ?: error.javaClass.simpleName
-                status = message
+                status = error.message ?: error.javaClass.simpleName
             } finally {
                 busy = false
             }
         }
     }
 
-    fun useHuggingFacePreset() {
-        baseUrl = "https://router.huggingface.co/v1"
-        model = "Qwen/Qwen3-4B-Thinking-2507:cheapest"
-        apiKey = ""
-        status = "Paste a Hugging Face token, then test."
-    }
+    fun useGeneralPreset() = selectProfile(UncensoredModelCatalog.general.id)
 
-    fun useLocalPreset() {
-        baseUrl = "http://127.0.0.1:8080/v1"
-        model = "local-model"
-        apiKey = ""
-        status = "Local mode needs a llama.cpp server running on port 8080."
-    }
+    fun useThinkerPreset() = selectProfile(UncensoredModelCatalog.thinker.id)
 
-    fun useOpenAiPreset() {
-        baseUrl = "https://api.openai.com/v1"
-        model = "gpt-4.1-mini"
-        apiKey = ""
-        status = "Paste your OpenAI key, then test."
+    fun useCoderPreset() = selectProfile(UncensoredModelCatalog.coder.id)
+
+    fun openSelectedModelPage() {
+        val repository = activeProfileRepository
+        if (repository.isBlank()) {
+            status = "Choose an approved model first."
+            return
+        }
+        quickAction("open_uri", "https://huggingface.co/$repository")
     }
 
     fun shareLatestZip() {
@@ -184,9 +202,30 @@ class AethenaViewModel(application: Application) : AndroidViewModel(application)
         speechText = null
     }
 
+    private fun selectProfile(modelId: String) {
+        baseUrl = UncensoredModelCatalog.LOCAL_BASE_URL
+        model = modelId
+        apiKey = ""
+        persistSettings()
+        val profile = UncensoredModelCatalog.find(modelId)
+        status = "Selected ${profile?.displayName}. Start its local GGUF server, then test."
+    }
+
+    private fun strictConfigurationError(): String? {
+        val normalized = baseUrl.trim().lowercase()
+        val local = normalized.startsWith("http://127.0.0.1:") ||
+            normalized.startsWith("http://localhost:") ||
+            normalized.startsWith("https://127.0.0.1:") ||
+            normalized.startsWith("https://localhost:")
+
+        if (!local) return "Blocked: Strict Uncensored Mode accepts localhost only. Remote providers and hidden substitutions are disabled."
+        if (!UncensoredModelCatalog.isAllowed(model)) return "Blocked: choose one of Aethena's approved uncensored/abliterated models."
+        return null
+    }
+
     private fun persistSettings() {
         settings.baseUrl = baseUrl
-        settings.apiKey = apiKey
+        settings.apiKey = ""
         settings.model = model
         settings.memory = memory
         settings.speakReplies = speakReplies
