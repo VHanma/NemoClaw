@@ -347,34 +347,54 @@ private fun SettingsTab(vm: AethenaViewModel) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text("Model connection", style = MaterialTheme.typography.headlineSmall)
-        Text("Aethena accepts local llama.cpp, Hugging Face endpoints, or any OpenAI-compatible server.")
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = vm::useLocalPreset, modifier = Modifier.weight(1f)) { Text("Local") }
-            Button(onClick = vm::useOpenAiPreset, modifier = Modifier.weight(1f)) { Text("OpenAI backup") }
+        Text("Connect Aethena's brain", style = MaterialTheme.typography.headlineSmall)
+        Text("Easiest: press Hugging Face, paste an HF token, save, then test. Your token stays encrypted on this phone.")
+
+        Button(onClick = vm::useHuggingFacePreset, modifier = Modifier.fillMaxWidth()) {
+            Text("Hugging Face")
         }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = vm::useOpenAiPreset, modifier = Modifier.weight(1f)) { Text("OpenAI") }
+            Button(onClick = vm::useLocalPreset, modifier = Modifier.weight(1f)) { Text("Local advanced") }
+        }
+        Button(
+            onClick = { vm.quickAction("open_uri", "https://huggingface.co/settings/tokens") },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Create or manage HF token")
+        }
+
         OutlinedTextField(
             value = vm.baseUrl,
             onValueChange = { vm.baseUrl = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Base URL") },
+            label = { Text("Provider URL") },
             singleLine = true
         )
         OutlinedTextField(
             value = vm.model,
             onValueChange = { vm.model = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Model name") },
+            label = { Text("Model ID") },
             singleLine = true
         )
         OutlinedTextField(
             value = vm.apiKey,
             onValueChange = { vm.apiKey = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("API token, blank for local") },
+            label = { Text("HF token or API key") },
             visualTransformation = PasswordVisualTransformation(),
             singleLine = true
         )
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = vm::saveSettings, modifier = Modifier.weight(1f)) { Text("Save") }
+            Button(onClick = vm::testConnection, enabled = !vm.busy, modifier = Modifier.weight(1f)) {
+                Text(if (vm.busy) "Testing…" else "Test connection")
+            }
+        }
+
+        Text("Personality and memory", style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(
             value = vm.memory,
             onValueChange = { vm.memory = it },
@@ -386,9 +406,10 @@ private fun SettingsTab(vm: AethenaViewModel) {
             Text("Speak replies", modifier = Modifier.weight(1f))
             Switch(checked = vm.speakReplies, onCheckedChange = { vm.speakReplies = it })
         }
-        Button(onClick = vm::saveSettings, modifier = Modifier.fillMaxWidth()) { Text("Save encrypted settings") }
+
         Spacer(Modifier.height(10.dp))
-        Text("Hugging Face note", style = MaterialTheme.typography.titleMedium)
-        Text("For a hosted model, paste its OpenAI-compatible endpoint URL, token, and model ID. For an offline model, run a llama.cpp server on port 8080 and use the Local preset.")
+        Text("Hugging Face setup", style = MaterialTheme.typography.titleMedium)
+        Text("Create a fine-grained token with permission to make calls to Inference Providers. The preset uses Hugging Face's OpenAI-compatible router. You may replace the model ID with another model served by a provider.")
+        Text("Local mode only works after a llama.cpp server is running on this phone. It is not automatically bundled into this APK.")
     }
 }
