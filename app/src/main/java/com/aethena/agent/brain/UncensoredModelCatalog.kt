@@ -11,10 +11,10 @@ object UncensoredModelCatalog {
     const val LOCAL_BASE_URL = "http://127.0.0.1:8080/v1"
 
     val verified = UncensoredModelProfile(
-        id = "qwen2.5-0.5b-abliterated-sft",
-        displayName = "Aethena Verified Local Brain",
-        repository = "mradermacher/Qwen2.5-0.5B-Instruct-abliterated-SFT-i1-GGUF",
-        purpose = "Uncensored local conversation, philosophy, automation, and lightweight coding"
+        id = "huihui-qwen3.5-4b-abliterated-q3ks",
+        displayName = "Aethena Qwen3.5 4B Uncensored",
+        repository = "mradermacher/Huihui-Qwen3.5-4B-abliterated-i1-GGUF",
+        purpose = "Local uncensored conversation, philosophy, reasoning, automation, and coding"
     )
 
     val allowed = listOf(verified)
