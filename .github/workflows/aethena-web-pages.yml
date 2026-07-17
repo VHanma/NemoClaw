@@ -34,7 +34,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: aethena-web/package.json
 
@@ -43,13 +43,26 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Build browser app
-        working-directory: aethena-web
-        run: npm run build
+        shell: bash
+        run: |
+          set -o pipefail
+          cd aethena-web
+          npm run build 2>&1 | tee ../aethena-web-build.log
+
+      - name: Upload browser build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aethena-web-build-log
+          path: aethena-web-build.log
+          if-no-files-found: error
 
       - name: Configure Pages
+        if: success()
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
+        if: success()
         uses: actions/upload-pages-artifact@v3
         with:
           path: aethena-web/dist
