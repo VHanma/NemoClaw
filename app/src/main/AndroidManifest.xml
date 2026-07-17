@@ -19,6 +19,7 @@
 
     <application
         android:allowBackup="true"
+        android:extractNativeLibs="true"
         android:usesCleartextTraffic="true"
         android:icon="@drawable/ic_aethena"
         android:label="Aethena"
@@ -65,6 +66,16 @@
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-requested persistent floating AI assistant orb" />
+        </service>
+
+        <service
+            android:name=".local.LocalModelService"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-requested on-device language model download, verification, and inference" />
         </service>
 
         <provider
