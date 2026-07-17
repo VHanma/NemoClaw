@@ -1,0 +1,19 @@
+{
+  "name": "Aethena Web",
+  "short_name": "Aethena",
+  "description": "Private local AI companion running inside the browser.",
+  "start_url": "/NemoClaw/",
+  "scope": "/NemoClaw/",
+  "display": "standalone",
+  "background_color": "#080a12",
+  "theme_color": "#080a12",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
