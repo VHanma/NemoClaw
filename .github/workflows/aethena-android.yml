@@ -27,7 +27,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,6 +42,30 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
+
+      - name: Bundle official llama.cpp Android engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          LLAMA_TAG="b9637"
+          ARCHIVE="/tmp/llama-android.tar.gz"
+          EXTRACTED="/tmp/llama-android"
+          JNI_DIR="app/src/main/jniLibs/arm64-v8a"
+          curl -L --fail --retry 3 \
+            "https://github.com/ggml-org/llama.cpp/releases/download/${LLAMA_TAG}/llama-${LLAMA_TAG}-bin-android-arm64.tar.gz" \
+            -o "$ARCHIVE"
+          echo "66068af2400dbaaadb4dc3e4042d120c6633f115ecd2fe1a8979fb55e0648e4d  $ARCHIVE" | sha256sum -c -
+          rm -rf "$EXTRACTED" "$JNI_DIR"
+          mkdir -p "$EXTRACTED" "$JNI_DIR"
+          tar -xzf "$ARCHIVE" -C "$EXTRACTED"
+          SERVER_PATH="$(find "$EXTRACTED" -type f -name llama-server | head -n 1)"
+          test -n "$SERVER_PATH"
+          cp "$SERVER_PATH" "$JNI_DIR/libllama_server_exec.so"
+          find "$EXTRACTED" -type f -name '*.so' -exec cp -f {} "$JNI_DIR/" \;
+          chmod 755 "$JNI_DIR"/*.so
+          echo "Bundled native files:"
+          ls -lh "$JNI_DIR"
+          file "$JNI_DIR/libllama_server_exec.so"
 
       - name: Build debug APK
         shell: bash
