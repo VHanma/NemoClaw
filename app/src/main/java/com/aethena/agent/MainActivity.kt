@@ -364,7 +364,7 @@ private fun BrainTab(vm: AethenaViewModel) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text("Strict Local Brain", style = MaterialTheme.typography.headlineSmall)
-        Text("One verified uncensored model. No key, URL, remote provider, or fallback model.")
+        Text("Qwen3.5 4B Abliterated runs locally. No key, URL, remote provider, or fallback model.")
 
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -384,10 +384,10 @@ private fun BrainTab(vm: AethenaViewModel) {
         }
 
         Button(onClick = vm::installAndStartBrain, enabled = !vm.localBrainOnline, modifier = Modifier.fillMaxWidth()) {
-            Text(if (vm.localModelVerified) "Verify and Start Brain" else "Install and Start Brain · about 338 MB")
+            Text(if (vm.localModelVerified) "Verify and Start 4B Brain" else "Upgrade and Start 4B Brain · about 2.07 GB")
         }
         if (vm.localModelVerified && !vm.localBrainOnline) {
-            Button(onClick = vm::startInstalledBrain, modifier = Modifier.fillMaxWidth()) { Text("Start Installed Brain") }
+            Button(onClick = vm::startInstalledBrain, modifier = Modifier.fillMaxWidth()) { Text("Start Installed 4B Brain") }
         }
         if (vm.localBrainOnline) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -399,9 +399,10 @@ private fun BrainTab(vm: AethenaViewModel) {
         Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF111624))) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(vm.activeProfileName, style = MaterialTheme.typography.titleMedium)
-                Text("Qwen2.5 0.5B Abliterated SFT · Q3_K_S")
-                Text("Expected download: about 338 MB")
-                Text("SHA-256 locked: 65175e70…c49d6d8")
+                Text("Huihui Qwen3.5 4B Abliterated i1 · Q3_K_S")
+                Text("Expected download: about 2.07 GB")
+                Text("SHA-256 locked: 64a4688b…3baa26e5")
+                Text("The old 0.5B model is deleted before the upgrade.")
             }
         }
         Button(onClick = vm::openSelectedModelPage, modifier = Modifier.fillMaxWidth()) { Text("View model source") }
@@ -420,6 +421,6 @@ private fun BrainTab(vm: AethenaViewModel) {
         }
         Button(onClick = vm::saveSettings, modifier = Modifier.fillMaxWidth()) { Text("Save personality") }
 
-        Text("The app downloads the exact GGUF, verifies its SHA-256, and starts a bundled official llama.cpp Android ARM64 engine on localhost. A mismatched model is deleted instead of loaded.")
+        Text("The download resumes after interruption. Aethena verifies the full GGUF hash before loading it with the bundled llama.cpp ARM64 engine. A mismatched file is deleted.")
     }
 }
