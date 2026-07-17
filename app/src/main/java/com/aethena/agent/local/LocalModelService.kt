@@ -35,7 +35,7 @@ class LocalModelService : Service() {
 
     private val http = OkHttpClient.Builder()
         .connectTimeout(45, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.MINUTES)
+        .readTimeout(2, TimeUnit.HOURS)
         .writeTimeout(45, TimeUnit.SECONDS)
         .followRedirects(true)
         .followSslRedirects(true)
@@ -69,6 +69,7 @@ class LocalModelService : Service() {
         if (activeJob?.isActive == true) return
         activeJob = serviceScope.launch {
             try {
+                cleanupLegacyModels()
                 val model = modelFile()
                 if (!model.exists()) downloadModel(model)
                 verifyModel(model)
@@ -85,8 +86,9 @@ class LocalModelService : Service() {
         if (activeJob?.isActive == true) return
         activeJob = serviceScope.launch {
             try {
+                cleanupLegacyModels()
                 val model = modelFile()
-                require(model.exists()) { "The verified model is not installed yet. Press Install and Start Brain." }
+                require(model.exists()) { "The verified 4B model is not installed yet. Press Install and Start Brain." }
                 verifyModel(model)
                 startServer(model)
             } catch (error: Throwable) {
@@ -97,45 +99,71 @@ class LocalModelService : Service() {
         }
     }
 
-    private suspend fun downloadModel(destination: File) = withContext(Dispatchers.IO) {
-        val available = StatFs(filesDir.absolutePath).availableBytes
-        require(available >= MIN_FREE_BYTES) {
-            "Aethena needs about 450 MB free for the verified local model and download workspace."
+    private fun cleanupLegacyModels() {
+        val directory = modelsDirectory().apply { mkdirs() }
+        val keepModel = MODEL_FILENAME
+        val keepPartial = "$MODEL_FILENAME.part"
+        directory.listFiles()?.forEach { file ->
+            val isOldModel = file.name.endsWith(".gguf", ignoreCase = true) && file.name != keepModel
+            val isOldPartial = file.name.endsWith(".part", ignoreCase = true) && file.name != keepPartial
+            if (isOldModel || isOldPartial) file.delete()
         }
+    }
 
+    private suspend fun downloadModel(destination: File) = withContext(Dispatchers.IO) {
         destination.parentFile?.mkdirs()
         val partial = File(destination.parentFile, destination.name + ".part")
-        partial.delete()
+        if (partial.length() > EXPECTED_APPROX_BYTES + 128L * 1024L * 1024L) partial.delete()
 
-        LocalBrainRuntime.update("Downloading uncensored brain", "0% of about 338 MB", 0, online = false)
-        updateNotification("Downloading uncensored brain", "0% of about 338 MB")
+        var existing = partial.length()
+        val remaining = (EXPECTED_APPROX_BYTES - existing).coerceAtLeast(0L)
+        val available = StatFs(filesDir.absolutePath).availableBytes
+        require(available >= remaining + SAFETY_FREE_BYTES) {
+            "Aethena needs about 2.4 GB free to finish installing the 4B brain. The old tiny model was already removed."
+        }
 
-        val request = Request.Builder()
+        val initialPercent = ((existing.toDouble() / EXPECTED_APPROX_BYTES.toDouble()) * 100.0)
+            .roundToInt()
+            .coerceIn(0, 99)
+        val initialDetail = if (existing > 0L) {
+            "Resuming at ${existing / 1_000_000} MB"
+        } else {
+            "0% of about 2.07 GB"
+        }
+        LocalBrainRuntime.update("Downloading 4B uncensored brain", initialDetail, initialPercent, online = false)
+        updateNotification("Downloading 4B uncensored brain", initialDetail)
+
+        val requestBuilder = Request.Builder()
             .url(MODEL_URL)
-            .header("User-Agent", "Aethena-Android/0.4")
-            .build()
+            .header("User-Agent", "Aethena-Android/0.5")
+        if (existing > 0L) requestBuilder.header("Range", "bytes=$existing-")
 
-        http.newCall(request).execute().use { response ->
+        http.newCall(requestBuilder.build()).execute().use { response ->
             require(response.isSuccessful) { "Model download failed: HTTP ${response.code}" }
             val body = response.body ?: error("Model download returned no file data.")
-            val total = body.contentLength().takeIf { it > 0 } ?: EXPECTED_APPROX_BYTES
-            var copied = 0L
-            var lastPercent = -1
+            val resumed = response.code == 206 && existing > 0L
+            if (!resumed) existing = 0L
+            val bodyLength = body.contentLength().takeIf { it > 0L } ?: (EXPECTED_APPROX_BYTES - existing)
+            val total = if (resumed) existing + bodyLength else bodyLength
+            var copied = existing
+            var lastPercent = initialPercent
 
             body.byteStream().use { input ->
-                FileOutputStream(partial).use { output ->
+                FileOutputStream(partial, resumed).use { output ->
                     val buffer = ByteArray(1024 * 1024)
                     while (true) {
                         val read = input.read(buffer)
                         if (read < 0) break
                         output.write(buffer, 0, read)
                         copied += read
-                        val percent = ((copied.toDouble() / total.toDouble()) * 100.0).roundToInt().coerceIn(0, 100)
+                        val percent = ((copied.toDouble() / total.toDouble()) * 100.0)
+                            .roundToInt()
+                            .coerceIn(0, 100)
                         if (percent != lastPercent) {
                             lastPercent = percent
-                            val detail = "$percent% · ${copied / 1_048_576} MB downloaded"
-                            LocalBrainRuntime.update("Downloading uncensored brain", detail, percent, online = false)
-                            updateNotification("Downloading uncensored brain", detail)
+                            val detail = "$percent% · ${copied / 1_000_000} MB downloaded"
+                            LocalBrainRuntime.update("Downloading 4B uncensored brain", detail, percent, online = false)
+                            updateNotification("Downloading 4B uncensored brain", detail)
                         }
                     }
                     output.fd.sync()
@@ -143,7 +171,7 @@ class LocalModelService : Service() {
             }
         }
 
-        require(partial.length() > 300L * 1024L * 1024L) { "Downloaded model file is unexpectedly small." }
+        require(partial.length() > MIN_VALID_MODEL_BYTES) { "Downloaded model file is unexpectedly small." }
         if (!partial.renameTo(destination)) {
             partial.copyTo(destination, overwrite = true)
             partial.delete()
@@ -151,8 +179,8 @@ class LocalModelService : Service() {
     }
 
     private suspend fun verifyModel(model: File) = withContext(Dispatchers.IO) {
-        LocalBrainRuntime.update("Verifying exact model", "Checking SHA-256…", 100, online = false)
-        updateNotification("Verifying exact model", "Checking SHA-256")
+        LocalBrainRuntime.update("Verifying exact 4B model", "Checking SHA-256…", 100, online = false)
+        updateNotification("Verifying exact 4B model", "Checking SHA-256")
 
         val digest = MessageDigest.getInstance("SHA-256")
         FileInputStream(model).use { input ->
@@ -169,8 +197,8 @@ class LocalModelService : Service() {
             error("Model verification failed. The file was deleted instead of being trusted.")
         }
         LocalBrainRuntime.update(
-            phase = "Model verified",
-            detail = "Exact approved uncensored GGUF confirmed",
+            phase = "4B model verified",
+            detail = "Exact Qwen3.5 abliterated GGUF confirmed",
             progressPercent = 100,
             online = false,
             modelVerified = true
@@ -183,12 +211,12 @@ class LocalModelService : Service() {
         val executable = File(nativeDir, "libllama_server_exec.so")
         require(executable.exists()) { "The bundled llama.cpp engine is missing from this APK." }
 
-        val threads = Runtime.getRuntime().availableProcessors().coerceIn(2, 6)
+        val threads = Runtime.getRuntime().availableProcessors().coerceIn(3, 6)
         val command = listOf(
             executable.absolutePath,
             "-m", model.absolutePath,
             "--alias", MODEL_ALIAS,
-            "-c", "2048",
+            "-c", "1536",
             "--host", "127.0.0.1",
             "--port", "8080",
             "--parallel", "1",
@@ -197,13 +225,13 @@ class LocalModelService : Service() {
         )
 
         LocalBrainRuntime.update(
-            phase = "Starting local brain",
-            detail = "Loading the verified model into memory…",
+            phase = "Starting 4B local brain",
+            detail = "Loading Qwen3.5 into memory. This may take a minute…",
             progressPercent = 100,
             online = false,
             modelVerified = true
         )
-        updateNotification("Starting local brain", "Loading verified model")
+        updateNotification("Starting 4B local brain", "Loading verified model")
 
         val process = ProcessBuilder(command)
             .directory(filesDir)
@@ -231,23 +259,23 @@ class LocalModelService : Service() {
             }
         }
 
-        repeat(120) {
-            if (!process.isAlive) error("The bundled local engine stopped while loading the model.")
+        repeat(240) {
+            if (!process.isAlive) error("The bundled local engine stopped while loading the 4B model.")
             if (healthCheck()) {
                 LocalBrainRuntime.update(
-                    phase = "Local brain online",
-                    detail = "Verified uncensored model is ready. No remote fallback.",
+                    phase = "4B local brain online",
+                    detail = "Qwen3.5 uncensored model is ready. No remote fallback.",
                     progressPercent = 100,
                     online = true,
                     modelVerified = true
                 )
-                updateNotification("Aethena brain online", "Verified model running locally")
+                updateNotification("Aethena 4B brain online", "Verified Qwen3.5 running locally")
                 return@withContext
             }
             delay(1_000)
         }
         stopProcess()
-        error("The local model took too long to start.")
+        error("The 4B local model took too long to start.")
     }
 
     private fun healthCheck(): Boolean {
@@ -263,12 +291,12 @@ class LocalModelService : Service() {
         stopProcess()
         LocalBrainRuntime.update(
             phase = "Local brain stopped",
-            detail = "The model remains installed and verified.",
+            detail = "The verified 4B model remains installed.",
             progressPercent = 100,
             online = false,
             modelVerified = modelFile().exists()
         )
-        updateNotification("Aethena brain stopped", "Model remains installed")
+        updateNotification("Aethena brain stopped", "4B model remains installed")
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -276,14 +304,14 @@ class LocalModelService : Service() {
     private fun stopProcess() {
         LocalBrainRuntime.serverProcess?.let { process ->
             runCatching { process.destroy() }
-            runCatching {
-                if (process.isAlive) process.destroyForcibly()
-            }
+            runCatching { if (process.isAlive) process.destroyForcibly() }
         }
         LocalBrainRuntime.serverProcess = null
     }
 
-    private fun modelFile(): File = File(File(filesDir, "models"), MODEL_FILENAME)
+    private fun modelsDirectory(): File = File(filesDir, "models")
+
+    private fun modelFile(): File = File(modelsDirectory(), MODEL_FILENAME)
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -321,14 +349,15 @@ class LocalModelService : Service() {
         const val ACTION_START = "com.aethena.agent.START_LOCAL_BRAIN"
         const val ACTION_STOP = "com.aethena.agent.STOP_LOCAL_BRAIN"
 
-        const val MODEL_ALIAS = "qwen2.5-0.5b-abliterated-sft"
-        const val MODEL_FILENAME = "Aethena-Qwen2.5-0.5B-Abliterated-SFT-Q3_K_S.gguf"
-        const val MODEL_SHA256 = "65175e70ac1054990fc3a63bd31533f7864e8fecdee2b3b7f5c529949c49d6d8"
-        const val MODEL_URL = "https://huggingface.co/mradermacher/Qwen2.5-0.5B-Instruct-abliterated-SFT-i1-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-abliterated-SFT.i1-Q3_K_S.gguf?download=true"
+        const val MODEL_ALIAS = "huihui-qwen3.5-4b-abliterated-q3ks"
+        const val MODEL_FILENAME = "Aethena-Huihui-Qwen3.5-4B-Abliterated-i1-Q3_K_S.gguf"
+        const val MODEL_SHA256 = "64a4688ba66d87937102f9caaffa49ae091aa3bb85952892bdf052df3baa26e5"
+        const val MODEL_URL = "https://huggingface.co/mradermacher/Huihui-Qwen3.5-4B-abliterated-i1-GGUF/resolve/main/Huihui-Qwen3.5-4B-abliterated.i1-Q3_K_S.gguf?download=true"
 
         private const val CHANNEL_ID = "aethena_local_brain"
         private const val NOTIFICATION_ID = 7402
-        private const val EXPECTED_APPROX_BYTES = 338L * 1024L * 1024L
-        private const val MIN_FREE_BYTES = 450L * 1024L * 1024L
+        private const val EXPECTED_APPROX_BYTES = 2_070_000_000L
+        private const val MIN_VALID_MODEL_BYTES = 1_900_000_000L
+        private const val SAFETY_FREE_BYTES = 300_000_000L
     }
 }
