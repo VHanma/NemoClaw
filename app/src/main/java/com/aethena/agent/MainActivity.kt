@@ -73,7 +73,6 @@ class MainActivity : ComponentActivity() {
         tts = TextToSpeech(this) { result ->
             if (result == TextToSpeech.SUCCESS) tts?.language = Locale.US
         }
-
         setContent {
             val speech = vm.speechText
             LaunchedEffect(speech) {
@@ -153,13 +152,9 @@ private val AethenaColors = darkColorScheme(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AethenaApp(
-    vm: AethenaViewModel,
-    onVoice: () -> Unit,
-    onSpeak: (String) -> Unit
-) {
+private fun AethenaApp(vm: AethenaViewModel, onVoice: () -> Unit, onSpeak: (String) -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    val labels = listOf("Chat", "Operate", "Code", "Settings")
+    val labels = listOf("Chat", "Operate", "Code", "Brain")
 
     Scaffold(
         topBar = {
@@ -178,7 +173,7 @@ private fun AethenaApp(
                     NavigationBarItem(
                         selected = tab == index,
                         onClick = { tab = index },
-                        icon = { Text(listOf("✦", "◎", "⌘", "⚙")[index]) },
+                        icon = { Text(listOf("✦", "◎", "⌘", "◉")[index]) },
                         label = { Text(label) }
                     )
                 }
@@ -187,23 +182,43 @@ private fun AethenaApp(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             when (tab) {
-                0 -> ChatTab(vm, onVoice, onSpeak)
+                0 -> ChatTab(vm, onVoice, onSpeak, openBrain = { tab = 3 })
                 1 -> OperateTab(vm)
                 2 -> CodeTab(vm)
-                else -> SettingsTab(vm)
+                else -> BrainTab(vm)
             }
         }
     }
 }
 
 @Composable
-private fun ChatTab(vm: AethenaViewModel, onVoice: () -> Unit, onSpeak: (String) -> Unit) {
+private fun ChatTab(
+    vm: AethenaViewModel,
+    onVoice: () -> Unit,
+    onSpeak: (String) -> Unit,
+    openBrain: () -> Unit
+) {
     val listState = rememberLazyListState()
     LaunchedEffect(vm.messages.size) {
         if (vm.messages.isNotEmpty()) listState.animateScrollToItem(vm.messages.lastIndex)
     }
 
     Column(Modifier.fillMaxSize().padding(12.dp)) {
+        if (!vm.localBrainOnline) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2A213E))
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    Text("Local brain required", style = MaterialTheme.typography.titleMedium)
+                    Text("Install it once. Aethena handles the model, hash check, and engine startup.")
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = openBrain, modifier = Modifier.fillMaxWidth()) { Text("Open Brain Setup") }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -228,7 +243,7 @@ private fun ChatTab(vm: AethenaViewModel, onVoice: () -> Unit, onSpeak: (String)
                     horizontalArrangement = if (message.role == "user") Arrangement.End else Arrangement.Start
                 ) {
                     Card(
-                        modifier = Modifier.fillMaxWidth(0.9f),
+                        modifier = Modifier.fillMaxWidth(0.92f),
                         colors = CardDefaults.cardColors(
                             containerColor = if (message.role == "user") Color(0xFF292044) else Color(0xFF121A29)
                         )
@@ -245,7 +260,6 @@ private fun ChatTab(vm: AethenaViewModel, onVoice: () -> Unit, onSpeak: (String)
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             value = vm.input,
             onValueChange = { vm.input = it },
@@ -259,7 +273,7 @@ private fun ChatTab(vm: AethenaViewModel, onVoice: () -> Unit, onSpeak: (String)
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(onClick = onVoice, modifier = Modifier.weight(1f)) { Text("Voice") }
-            Button(onClick = vm::send, enabled = !vm.busy, modifier = Modifier.weight(1f)) {
+            Button(onClick = vm::send, enabled = !vm.busy && vm.localBrainOnline, modifier = Modifier.weight(1f)) {
                 Text(if (vm.busy) "Working…" else "Send")
             }
         }
@@ -274,7 +288,7 @@ private fun OperateTab(vm: AethenaViewModel) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text("Phone control", style = MaterialTheme.typography.headlineSmall)
-        Text("Grant each Android permission once. After that, speak ordinary commands in Chat.")
+        Text("Grant each Android permission once. Then speak ordinary commands in Chat.")
         ActionButton("Enable screen reading and tapping") { vm.quickAction("open_accessibility_settings") }
         ActionButton("Enable notification memory") { vm.quickAction("open_notification_settings") }
         ActionButton("Allow floating Aethena orb") { vm.quickAction("open_overlay_settings") }
@@ -282,7 +296,6 @@ private fun OperateTab(vm: AethenaViewModel) {
             Button(onClick = { vm.quickAction("start_orb") }, modifier = Modifier.weight(1f)) { Text("Start orb") }
             Button(onClick = { vm.quickAction("stop_orb") }, modifier = Modifier.weight(1f)) { Text("Stop orb") }
         }
-        Text("Quick controls", style = MaterialTheme.typography.titleMedium)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { vm.quickAction("back") }, modifier = Modifier.weight(1f)) { Text("Back") }
             Button(onClick = { vm.quickAction("home") }, modifier = Modifier.weight(1f)) { Text("Home") }
@@ -316,7 +329,7 @@ private fun CodeTab(vm: AethenaViewModel) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text("Architect workspace", style = MaterialTheme.typography.headlineSmall)
-        Text("Describe the finished project. The selected local uncensored model creates every file and packages them into one ZIP.")
+        Text("The verified local model creates the files and packages them into one ZIP.")
         OutlinedTextField(
             value = vm.projectName,
             onValueChange = { vm.projectName = it },
@@ -330,7 +343,11 @@ private fun CodeTab(vm: AethenaViewModel) {
             label = { Text("What should Aethena build?") },
             minLines = 8
         )
-        Button(onClick = vm::buildProject, enabled = !vm.busy && vm.codeRequest.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+        Button(
+            onClick = vm::buildProject,
+            enabled = !vm.busy && vm.codeRequest.isNotBlank() && vm.localBrainOnline,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text(if (vm.busy) "Building…" else "Create complete project ZIP")
         }
         Button(onClick = vm::shareLatestZip, enabled = vm.latestZip != null, modifier = Modifier.fillMaxWidth()) {
@@ -341,57 +358,53 @@ private fun CodeTab(vm: AethenaViewModel) {
 }
 
 @Composable
-private fun SettingsTab(vm: AethenaViewModel) {
+private fun BrainTab(vm: AethenaViewModel) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text("Strict Uncensored Mode", style = MaterialTheme.typography.headlineSmall)
-        Text("Local approved abliterated models only. Remote providers, ordinary models, API tokens, and silent fallbacks are blocked.")
+        Text("Strict Local Brain", style = MaterialTheme.typography.headlineSmall)
+        Text("One verified uncensored model. No key, URL, remote provider, or fallback model.")
 
-        Text("Choose Aethena's brain", style = MaterialTheme.typography.titleMedium)
-        Button(onClick = vm::useGeneralPreset, modifier = Modifier.fillMaxWidth()) {
-            Text("Freeform · General conversation")
-        }
-        Button(onClick = vm::useThinkerPreset, modifier = Modifier.fillMaxWidth()) {
-            Text("Deep Thinker · Philosophy and reasoning")
-        }
-        Button(onClick = vm::useCoderPreset, modifier = Modifier.fillMaxWidth()) {
-            Text("Architect · Coding")
-        }
-
-        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF161D2E))) {
-            Column(Modifier.padding(12.dp)) {
-                Text("Selected: ${vm.activeProfileName}", style = MaterialTheme.typography.titleMedium)
-                Text(vm.activeProfileRepository)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = if (vm.localBrainOnline) Color(0xFF123126) else Color(0xFF161D2E)
+            )
+        ) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(vm.localBrainPhase, style = MaterialTheme.typography.titleLarge)
+                Text(vm.localBrainDetail)
+                if (vm.localBrainProgress > 0 && !vm.localBrainOnline) {
+                    Text("Progress: ${vm.localBrainProgress}%", style = MaterialTheme.typography.titleMedium)
+                }
+                Text(if (vm.localModelVerified) "Model hash: VERIFIED" else "Model hash: waiting")
+                Text(if (vm.localBrainOnline) "Engine: ONLINE" else "Engine: offline")
             }
         }
 
-        Button(onClick = vm::openSelectedModelPage, modifier = Modifier.fillMaxWidth()) {
-            Text("Open selected GGUF model page")
+        Button(onClick = vm::installAndStartBrain, enabled = !vm.localBrainOnline, modifier = Modifier.fillMaxWidth()) {
+            Text(if (vm.localModelVerified) "Verify and Start Brain" else "Install and Start Brain · about 338 MB")
         }
-
-        OutlinedTextField(
-            value = vm.baseUrl,
-            onValueChange = { vm.baseUrl = it },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Locked local server URL") },
-            singleLine = true
-        )
-        OutlinedTextField(
-            value = vm.model,
-            onValueChange = { vm.model = it },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Approved local model ID") },
-            singleLine = true
-        )
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = vm::saveSettings, modifier = Modifier.weight(1f)) { Text("Save") }
-            Button(onClick = vm::testConnection, enabled = !vm.busy, modifier = Modifier.weight(1f)) {
-                Text(if (vm.busy) "Testing…" else "Test local brain")
+        if (vm.localModelVerified && !vm.localBrainOnline) {
+            Button(onClick = vm::startInstalledBrain, modifier = Modifier.fillMaxWidth()) { Text("Start Installed Brain") }
+        }
+        if (vm.localBrainOnline) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = vm::testConnection, modifier = Modifier.weight(1f)) { Text("Test") }
+                Button(onClick = vm::stopLocalBrain, modifier = Modifier.weight(1f)) { Text("Stop") }
             }
         }
+
+        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF111624))) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(vm.activeProfileName, style = MaterialTheme.typography.titleMedium)
+                Text("Qwen2.5 0.5B Abliterated SFT · Q3_K_S")
+                Text("Expected download: about 338 MB")
+                Text("SHA-256 locked: 65175e70…c49d6d8")
+            }
+        }
+        Button(onClick = vm::openSelectedModelPage, modifier = Modifier.fillMaxWidth()) { Text("View model source") }
 
         Text("Personality and memory", style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(
@@ -405,9 +418,8 @@ private fun SettingsTab(vm: AethenaViewModel) {
             Text("Speak replies", modifier = Modifier.weight(1f))
             Switch(checked = vm.speakReplies, onCheckedChange = { vm.speakReplies = it })
         }
+        Button(onClick = vm::saveSettings, modifier = Modifier.fillMaxWidth()) { Text("Save personality") }
 
-        Spacer(Modifier.height(10.dp))
-        Text("Guarantee boundary", style = MaterialTheme.typography.titleMedium)
-        Text("Aethena will reject remote URLs and model IDs outside the approved uncensored list. The exact GGUF must run through a local llama.cpp-compatible server on this phone. No other model is used as backup.")
+        Text("The app downloads the exact GGUF, verifies its SHA-256, and starts a bundled official llama.cpp Android ARM64 engine on localhost. A mismatched model is deleted instead of loaded.")
     }
 }
