@@ -148,11 +148,40 @@ async function runOpenClaw(prompt, sessionId) {
   return output;
 }
 
-function strategyContext(strategies, feedback) {
-  const strategyLines = strategies.slice(-20).map((s, i) => `${i + 1}. [${s.scope || 'general'}] ${s.rule}`);
+function strategyContext(strategies, feedback, runs) {
+  const feedbackByRun = new Map();
+  for (const item of feedback) {
+    const score = Number(item?.score);
+    if (!item?.runId || !Number.isFinite(score)) continue;
+    const bucket = feedbackByRun.get(item.runId) || [];
+    bucket.push(score);
+    feedbackByRun.set(item.runId, bucket);
+  }
+
+  const mutationToRun = new Map();
+  for (const run of runs) {
+    for (const mutationId of run?.learnedMutationIds || []) mutationToRun.set(mutationId, run.runId);
+  }
+
+  const ranked = strategies.map((strategy) => {
+    const originRun = mutationToRun.get(strategy.id);
+    const scores = originRun ? feedbackByRun.get(originRun) : null;
+    const outcomeScore = scores?.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+    return { strategy, outcomeScore };
+  }).filter(({ outcomeScore }) => outcomeScore == null || outcomeScore >= 5)
+    .sort((a, b) => {
+      const aScore = a.outcomeScore ?? (Number(a.strategy.confidence) || 0.5) * 10;
+      const bScore = b.outcomeScore ?? (Number(b.strategy.confidence) || 0.5) * 10;
+      return bScore - aScore;
+    }).slice(0, 20);
+
+  const strategyLines = ranked.map(({ strategy, outcomeScore }, i) => {
+    const signal = outcomeScore == null ? `provisional confidence=${strategy.confidence ?? 0.5}` : `external outcome=${outcomeScore.toFixed(1)}/10`;
+    return `${i + 1}. [${strategy.scope || 'general'}; ${signal}] ${strategy.rule}`;
+  });
   const feedbackLines = feedback.slice(-8).map((f) => `run=${f.runId} score=${f.score}/10 note=${f.note || 'none'}`);
   return [
-    strategyLines.length ? `Learned strategy rules:\n${strategyLines.join('\n')}` : 'No learned strategy rules yet.',
+    strategyLines.length ? `Learned strategy rules:\n${strategyLines.join('\n')}` : 'No currently trusted strategy rules.',
     feedbackLines.length ? `Recent outcome feedback:\n${feedbackLines.join('\n')}` : 'No external outcome feedback yet.'
   ].join('\n\n');
 }
@@ -249,8 +278,9 @@ async function handleAsk(positional, flags, store) {
   const agentCount = asInt(flags.agents, config.roles.length, 2, config.roles.length);
   const concurrency = asInt(process.env.FORGE_CONCURRENCY, agentCount, 1, config.roles.length);
   const strategies = await readJson(store.strategies, []);
-  const feedback = await readJsonl(store.feedback, 12);
-  const memory = strategyContext(strategies, feedback);
+  const feedback = await readJsonl(store.feedback, 50);
+  const priorRuns = await readJsonl(store.runs, 60);
+  const memory = strategyContext(strategies, feedback, priorRuns);
   const roles = config.roles.slice(0, agentCount);
 
   console.error(`[FORGE ${runId}] spawning ${roles.length} specialists...`);
