@@ -1,8 +1,8 @@
 # APEX FORGE / HYDRA
 
-FORGE is an experimental orchestration layer for NemoClaw/OpenClaw. It does **not** rewrite model weights. It improves the surrounding reasoning process by running competing specialist strategies, auditing the judge, red-teaming the winner, regression-testing the refinement, and carrying reusable strategy rules into later runs.
+FORGE is an experimental orchestration layer for NemoClaw/OpenClaw. It does **not** rewrite model weights. It improves the surrounding reasoning process by running competing specialist strategies, auditing the judge, red-teaming the winner, regression-testing the refinement, carrying reusable strategy rules into later runs, and evolving the external cognition configuration under benchmark pressure.
 
-## What the first version does
+## Core reasoning pipeline
 
 One task becomes this pipeline:
 
@@ -18,21 +18,19 @@ One task becomes this pipeline:
 
 This gives the system a mutable cognitive layer even when the underlying model itself is fixed.
 
-## Run it
+## APEX launcher
 
-Inside a NemoClaw/OpenClaw environment:
+Use the launcher for normal work so it automatically loads the current evolved champion and performs a Guardian health check before each task:
 
 ```bash
-node scripts/forge-hydra.mjs "Design a better memory architecture for this agent"
+node scripts/forge-apex.mjs "Design a better memory architecture for this agent"
 ```
 
-Change how many specialist heads participate:
+Direct HYDRA execution is still available:
 
 ```bash
 node scripts/forge-hydra.mjs "your task" --agents=4
 ```
-
-The command prints the final answer to stdout. Progress and the generated `runId` are printed to stderr.
 
 ## Give outcome feedback
 
@@ -42,9 +40,79 @@ After testing an answer in the real world, feed the result back into FORGE:
 node scripts/forge-hydra.mjs feedback RUN_ID 9 "Worked, but the setup step was incomplete"
 ```
 
-Recent feedback is included in later runs. That matters because self-evaluation alone can reinforce its own mistakes; external outcomes give the loop an independent signal.
+Recent feedback is included in later runs. Self-evaluation alone can reinforce its own mistakes, so external outcomes provide an independent signal.
 
 FORGE links each learned mutation to the run that created it. If that originating run later receives an average external rating below **5/10**, its mutations are suppressed from future prompt memory. Unrated mutations remain provisional and are ranked by the mutator's confidence until real outcome data arrives.
+
+## Evolutionary cognition
+
+Run an evolutionary tournament through Darwin:
+
+```bash
+node scripts/forge-apex.mjs evolve --generations=2 --population=6
+```
+
+Darwin wraps `forge-evolve.mjs`, fingerprints the parent and resulting champion, saves the previous champion for rollback, and records ancestry in:
+
+```text
+~/.forge-hydra/evolution/champion-history.jsonl
+```
+
+If curated Predator benchmarks exist, Darwin automatically merges them with the static benchmark suite before evolution. A variant is still subject to the evolution controller's held-out scoring, improvement threshold, and worst-case regression protection.
+
+## Predator benchmarks
+
+Predator converts **real low-rated outcomes** into new adversarial holdout tests:
+
+```bash
+node scripts/forge-apex.mjs predator
+```
+
+The process is intentionally two-stage:
+
+1. A benchmark designer proposes self-contained, machine-checkable tests based on recurring historical failures.
+2. A separate curator rejects ambiguous, subjective, private, hidden-knowledge, or badly specified tests.
+
+Only schema-valid tests accepted by the curator enter:
+
+```text
+~/.forge-hydra/predator/active.json
+```
+
+The active Predator pool is capped so old adversarial tests rotate out instead of growing without bound.
+
+## Guardian rollback
+
+Guardian protects against benchmark overfitting or a champion that looks strong offline but performs badly in live use.
+
+Check it manually:
+
+```bash
+node scripts/forge-apex.mjs health
+```
+
+Change the rollback threshold:
+
+```bash
+node scripts/forge-apex.mjs health --threshold=5 --min-feedback=3
+```
+
+Normal APEX tasks run Guardian automatically before selecting the active cognition config. If enough feedback collected after the latest promotion falls below the threshold, Guardian restores the previous champion and records the rollback in the lineage log.
+
+## State files
+
+FORGE creates these outside the repository:
+
+- `runs.jsonl`: task, judge reports, critiques, verifier results, and final answers.
+- `strategies.json`: reusable strategy mutations extracted from completed runs.
+- `feedback.jsonl`: human or external outcome ratings.
+- `evolution/active.json`: current evolved champion.
+- `evolution/previous.json`: rollback candidate.
+- `evolution/champion-history.jsonl`: promotion, survival, and rollback lineage.
+- `predator/active.json`: curated adversarial holdout tasks derived from failures.
+- `predator/history.jsonl`: Predator benchmark creation history.
+
+The system caps learned strategies to the most recent 100 rules and the Predator pool to the most recent 12 tests so context and benchmark size do not grow without bound.
 
 ## Runtime controls
 
@@ -57,25 +125,22 @@ FORGE links each learned mutation to the run that created it. If that originatin
 | `FORGE_CONFIG` | Alternate cognition config JSON |
 | `FORGE_CONCURRENCY` | Max specialist calls running at once |
 | `FORGE_TIMEOUT_MS` | Per-agent timeout |
+| `FORGE_DARWIN_TIMEOUT_MS` | Maximum Darwin/evolution wrapper runtime |
 
 ## Mutable cognition
 
-`config/forge-hydra.json` is intentionally outside the model. Roles and judge weights can be edited, versioned, A/B tested, and reverted through Git.
+`config/forge-hydra.json` is intentionally outside the model. Roles and judge weights can be edited, versioned, A/B tested, evolved, and reverted without pretending the protected base model changed.
 
-A future evolutionary controller can create mutations of this file on separate branches, benchmark each mutation, and retain only configurations that outperform the parent on held-out tests.
+The current architecture now has three independent pressures:
 
-## State files
+- **internal adversarial pressure** from HYDRA, Meta-HYDRA, red-team, and regression verification;
+- **benchmark selection pressure** from train/holdout evolutionary competition;
+- **live outcome pressure** from user/external feedback and Guardian rollback.
 
-FORGE creates these outside the repository:
+## Important limitations
 
-- `runs.jsonl`: task, judge reports, critiques, verifier results, and final answers.
-- `strategies.json`: reusable strategy mutations extracted from completed runs.
-- `feedback.jsonl`: human or external outcome ratings.
+Judge, Meta-HYDRA, critic, synthesizer, verifier, mutator, Predator designer, and curator may still be backed by the same underlying model. Role separation and independent sessions reduce some coupling but do not make them genuinely independent brains.
 
-The system caps learned strategies to the most recent 100 rules so the context does not grow without bound.
+Predator checks are machine-verifiable but generated benchmark specifications can still be imperfect, which is why they pass both schema validation and an independent curator before use. Real-world feedback remains the strongest signal available to the rollback loop.
 
-## Important limitation
-
-This version's judge, Meta-HYDRA, critic, synthesizer, verifier, and mutator may still be backed by the same underlying model. Diversity comes from role separation, independent contexts, adversarial objectives, and external feedback, not from pretending they are genuinely independent brains.
-
-The strongest next upgrade is an evaluator backed by **different models plus objective benchmark checks**. That would reduce correlated blind spots and make selection pressure more real.
+The next major upgrade is **multi-model cognitive species**: route different HYDRA heads and evaluators through genuinely different model/provider families, then allow provider routing itself to become an evolvable gene. That would attack correlated blind spots rather than merely adding more passes from one underlying model.
