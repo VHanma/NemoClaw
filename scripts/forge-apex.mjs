@@ -28,12 +28,13 @@ async function speciesEnv(root,baseEnv){
 }
 async function main(){
   const argv=process.argv.slice(2);
-  const known=new Set(['evolve','predator','health','species-evolve','calibrate']);
+  const known=new Set(['evolve','predator','health','species-evolve','calibrate','hydra','pantheon']);
   const command=known.has(argv[0])?argv.shift():'ask';
   const root=process.env.FORGE_HOME||join(homedir(),'.forge-hydra');
   const active=join(root,'evolution','active.json');
   const base=resolve(process.cwd(),'config','forge-hydra.json');
   const hydra=process.env.FORGE_APEX_HYDRA_SCRIPT||resolve(process.cwd(),'scripts','forge-hydra.mjs');
+  const pantheon=process.env.FORGE_APEX_PANTHEON_SCRIPT||resolve(process.cwd(),'scripts','forge-pantheon.mjs');
   const darwin=process.env.FORGE_APEX_DARWIN_SCRIPT||resolve(process.cwd(),'scripts','forge-darwin.mjs');
   const predator=process.env.FORGE_APEX_PREDATOR_SCRIPT||resolve(process.cwd(),'scripts','forge-predator.mjs');
   const guardian=process.env.FORGE_APEX_GUARDIAN_SCRIPT||resolve(process.cwd(),'scripts','forge-guardian.mjs');
@@ -50,6 +51,8 @@ async function main(){
   const env=await speciesEnv(root,process.env);
   if(!env.FORGE_CONFIG){env.FORGE_CONFIG=await exists(active)?active:base;console.error(`[APEX] cognition=${env.FORGE_CONFIG===active?'evolved champion':'base config'}`)}
   if(env.FORGE_OPENCLAW_BIN?.endsWith('forge-species-runner.mjs')) console.error('[APEX] cognitive-species router=active');
+  const usePantheon=command==='pantheon'||(command==='ask'&&env.FORGE_PANTHEON!=='0');
+  if(usePantheon){console.error('[APEX] archetype-pantheon=active');run(pantheon,argv,env);return}
   run(hydra,argv,env);
 }
 main().catch(error=>{console.error(`APEX failed: ${error?.stack||error}`);process.exitCode=1});
