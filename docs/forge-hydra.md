@@ -1,177 +1,179 @@
 # APEX FORGE / HYDRA
 
-FORGE is an experimental orchestration layer for NemoClaw/OpenClaw. It does **not** rewrite model weights. It improves the surrounding reasoning process by running competing specialist strategies, auditing the judge, red-teaming the winner, regression-testing the refinement, carrying reusable strategy rules into later runs, evolving cognition under benchmark pressure, and routing different reasoning stages through independently configurable model backends.
+FORGE is an experimental cognition layer for NemoClaw/OpenClaw. It does **not** rewrite protected model weights. It improves the surrounding reasoning system through competing agents, model routing, archetype selection, evaluation, memory, adversarial testing, evolution, calibration, and live rollback.
 
-## Core reasoning pipeline
+## APEX stack
 
-One task becomes this pipeline:
+A normal APEX task can now pass through:
 
-1. Spawn independent specialist candidates from `config/forge-hydra.json`.
-2. Route each specialist through the configured cognitive species layer.
-3. Judge every candidate with a weighted rubric.
-4. Run **Meta-HYDRA** to audit the judge and override a bad selection.
-5. Red-team the selected winner.
-6. Synthesize a repaired answer.
-7. Run a regression verifier that compares the repaired answer with the original winner and rejects the repair if it became worse.
-8. Extract reusable reasoning mutations.
-9. Store run history, mutations, species telemetry, calibration, and external feedback under `~/.forge-hydra/`.
+1. **Guardian** checks whether the current cognition champion should be rolled back from live outcome data.
+2. **Calibration** updates evaluator guidance from historical confidence versus actual feedback.
+3. **Cognitive Species** chooses the best available model/backend for each reasoning stage.
+4. **Pantheon Conductor** selects a small task-specific set of archetypal lenses and collective councils.
+5. **HYDRA** produces competing specialist answers.
+6. **Judge + Meta-HYDRA** score the candidates and audit the scoring itself.
+7. **Red Team** attacks the current winner.
+8. **Synthesizer** repairs the answer.
+9. **Regression Verifier** can reject the repair if recursion made the answer worse.
+10. **Memory** stores reusable strategy mutations and external outcome feedback.
+11. **Predator + Darwin** turn real failures into curated adversarial tests and evolve the cognition configuration under train/holdout pressure.
 
-## APEX launcher
-
-Use the launcher for normal work:
+## Run APEX
 
 ```bash
 node scripts/forge-apex.mjs "Design a better memory architecture for this agent"
 ```
 
-APEX runs Guardian, refreshes confidence calibration, loads the evolved cognition champion, enables the species router when available, and then starts HYDRA.
+The Pantheon is enabled by default. Run raw HYDRA without the archetype layer with either:
 
-## Give outcome feedback
+```bash
+node scripts/forge-apex.mjs hydra "your task"
+```
+
+or:
+
+```bash
+FORGE_PANTHEON=0 node scripts/forge-apex.mjs "your task"
+```
+
+## APEX Pantheon
+
+`config/forge-archetypes.json` contains **78 individual cognitive archetypes** and **18 collective councils**. The registry is deliberately broad, not metaphysically exhaustive. The Conductor may create one temporary emergent archetype when a task genuinely needs a missing lens.
+
+Three archetypes are always present:
+
+- **Creator** for originality, invention, aesthetics, and new combinations.
+- **Skeptic** for assumption hunting and evidential resistance.
+- **Integrator** for resolving the full debate without flattening meaningful disagreement.
+
+The wider registry includes Jungian-core, epistemic, engineering, strategic, adversarial, creative, transformative, temporal, human, philosophical, shadow/lateral, and meta-cognitive families. Examples include Scientist, Mathematician, Engineer, Architect, Strategist, Black Swan, Artist, Poet, Inventor, Alchemist, Futurist, Forecaster, Empath, Psychologist, Philosopher, Symbolist, Shadow, Trickster, Contrarian, Conductor, and Meta-Critic.
+
+Collective councils include **Whole Mind, Collective Unconscious, Creative Studio, Scientific Academy, Engineering Forge, War Room, Truth Tribunal, Shadow Cabinet, Future Observatory, Human Council, Ethics Council, Executive Board, Research Guild, Innovation Lab, Dialectic Engine, Crisis Cell, Story Room, and Meta Council**.
+
+Archetypes are reasoning lenses, not separate consciousnesses or supernatural authorities. Symbolic lenses are explicitly instructed not to turn metaphor, intuition, dreams, myths, or archetypal resemblance into factual evidence.
+
+### Dynamic selection
+
+The Conductor normally selects only 4–10 archetypes and up to two councils. Running the entire Pantheon on every prompt would increase cost, latency, and correlated noise.
+
+Selection uses:
+
+- the task itself;
+- required diversity, with Creator + Skeptic + Integrator always included;
+- historical outcome scores when enough samples exist;
+- one optional emergent lens;
+- a deterministic keyword fallback if the Conductor backend is unavailable.
+
+`pantheon-runs.jsonl` records which archetypes and councils were used. The final HYDRA run ID is linked to external feedback, allowing future selection to learn which lenses have historically correlated with better or worse outcomes. This is treated as a useful signal, not proof of causality.
+
+## Elite Cognitive Species
+
+`config/forge-species.json` assigns reasoning stages and archetypes to independently configurable model backends. Species are enabled only when their required credentials or wrappers exist; otherwise routing falls through to the next available backend and ultimately to the primary OpenClaw environment.
+
+The default frontier-oriented roster includes:
+
+| Species | Intended strengths |
+| --- | --- |
+| GPT-5.6 Sol | frontier synthesis, research, coding, systems reasoning, meta-cognition |
+| GPT-5.6 Terra | balanced frontier reasoning and subagent work |
+| GPT-5.6 Luna | fast/high-volume support agents |
+| Claude Fable 5 | long-horizon coding, judgment, critique, hard knowledge work |
+| Claude Sonnet 5 | efficient agentic execution, coding, and tool use |
+| Gemini 3.1 Deep Think wrapper | mathematics, science, engineering, formal reasoning |
+| Gemini 3.1 Pro | multimodal reasoning, creative concepts, design ideation |
+| Gemini 3.6 Flash | fast multimodal/spatial scouting and high-throughput loops |
+| Grok 4.5 | independent engineering/coding line, lateral and contrarian exploration |
+| Kimi K2.7 Code compatible route | open-weight independent coding/reasoning lineage |
+| GLM-5.2 compatible route | open-weight long-context and long-horizon lineage |
+| Primary OpenClaw | reliable fallback and connected local environment |
+
+This is a starting genome, not an eternal leaderboard. Model quality changes. `forge-species-evolve.mjs` exists so routing assignments can be benchmarked and evolved rather than frozen to vendor claims.
+
+### Credentials / optional routes
+
+The standard direct API species use environment variables rather than storing credentials in repository files or telemetry:
+
+```text
+OPENAI_API_KEY
+ANTHROPIC_API_KEY
+GEMINI_API_KEY
+XAI_API_KEY
+```
+
+Optional specialist routes:
+
+```text
+FORGE_GEMINI_DEEP_BIN
+FORGE_GEMINI_DEEP_ARGS_JSON
+FORGE_KIMI_BASE_URL
+FORGE_KIMI_API_KEY
+FORGE_GLM_BASE_URL
+FORGE_GLM_API_KEY
+```
+
+`forge-api-backend.mjs` provides API adapters. `forge-species-runner.mjs` uses explicit executable + argv arrays rather than shell-string execution and logs only routing telemetry, not credentials.
+
+## Feedback and confidence calibration
+
+After testing an answer in the real world:
 
 ```bash
 node scripts/forge-hydra.mjs feedback RUN_ID 9 "Worked, but the setup step was incomplete"
 ```
 
-Low-performing learned strategies are suppressed from future prompt memory. External outcomes also feed Guardian rollback and confidence calibration.
+External feedback can:
 
-## Evolutionary cognition
+- suppress strategy mutations originating from poorly rated runs;
+- inform Pantheon archetype/council selection;
+- calibrate Meta-HYDRA confidence;
+- trigger Guardian rollback when a newly promoted champion underperforms after deployment.
+
+## Evolution
+
+Run cognition evolution:
 
 ```bash
 node scripts/forge-apex.mjs evolve --generations=2 --population=6
 ```
 
-Darwin wraps `forge-evolve.mjs`, fingerprints the parent and champion, preserves the previous champion for rollback, records ancestry, and automatically merges curated Predator benchmarks into the tournament.
+Run model-routing evolution:
 
-## Predator benchmarks
+```bash
+node scripts/forge-apex.mjs species-evolve
+```
+
+Generate new adversarial tests from recurring real failures:
 
 ```bash
 node scripts/forge-apex.mjs predator
 ```
 
-Predator converts real low-rated outcomes into new adversarial holdout tests. A separate curator rejects ambiguous, subjective, private, hidden-knowledge, or malformed proposals before they enter `~/.forge-hydra/predator/active.json`.
-
-## Guardian rollback
+Check champion health:
 
 ```bash
 node scripts/forge-apex.mjs health
 ```
 
-If enough post-promotion feedback falls below the configured threshold, Guardian restores the previous champion and records the rollback in the lineage log.
+Evolution uses train/holdout scoring, improvement thresholds, and worst-case regression limits. Darwin records parent/child fingerprints. Guardian preserves the previous champion and can restore it if live performance deteriorates.
 
-## Cognitive species
+## Persistent state
 
-`config/forge-species.json` maps HYDRA stages to model backends. The default configuration uses only the current OpenClaw backend, so existing behavior remains unchanged until another species is enabled.
+FORGE stores runtime learning under `~/.forge-hydra/`, including:
 
-A species can be:
+- `runs.jsonl` — HYDRA runs and final answers
+- `strategies.json` — reusable reasoning mutations
+- `feedback.jsonl` — external outcome scores
+- `calibration.json` — confidence calibration summary
+- `pantheon-runs.jsonl` — archetype and council selections linked to child HYDRA runs
+- `species-runs.jsonl` — model/backend routing telemetry
+- `evolution/active.json` — current cognition champion
+- `evolution/previous.json` — rollback candidate
+- `evolution/champion-history.jsonl` — promotion/survival/rollback lineage
+- `species/active.json` — current routing genome
+- `predator/active.json` — curated adversarial holdout tasks
 
-- `openclaw`: a separate OpenClaw-compatible executable or wrapper;
-- `command`: any executable with an explicit argv template using `{prompt}`, `{sessionId}`, `{agent}`, and `{stage}` placeholders.
+## Practical limit
 
-No shell-string execution is used. Backends run through explicit executable + argument arrays, each with its own timeout and fallback behavior.
+The architecture can evolve prompts, roles, archetype mixtures, model routing, evaluation criteria, memories, benchmark curriculum, and rollback policy. It still cannot secretly rewrite protected provider model weights or manufacture provider access.
 
-Example routing concept:
-
-```json
-{
-  "routes": {
-    "builder": ["primary"],
-    "skeptic": ["secondary"],
-    "judge": ["secondary"],
-    "meta-judge": ["primary"],
-    "synth": ["primary"]
-  }
-}
-```
-
-This makes Builder, Skeptic, Judge, and Meta-HYDRA capable of being genuinely different model families instead of merely different personas of the same model.
-
-NemoClaw itself routes sandbox inference through `inference.local` and supports OpenAI, Anthropic, Gemini, NVIDIA, compatible endpoints, and local inference. Because cross-provider switching can require sandbox reconfiguration, FORGE species are intentionally modeled as separate backends/wrappers rather than rapidly racing one shared sandbox route.
-
-### Evolve the species map
-
-Enable at least two species, then run:
-
-```bash
-node scripts/forge-apex.mjs species-evolve --population=8
-```
-
-`forge-species-evolve.mjs` mutates which species handles which HYDRA stage, benchmarks each routing genome on training and held-out tasks, protects worst-case holdout performance, and promotes a stronger routing map to:
-
-```text
-~/.forge-hydra/species/active.json
-```
-
-The prior routing genome is preserved at `species/previous.json`.
-
-## Confidence calibration
-
-Run manually:
-
-```bash
-node scripts/forge-apex.mjs calibrate
-```
-
-APEX also refreshes calibration automatically before ordinary tasks. `forge-calibrate.mjs` compares historical Meta-HYDRA confidence with actual feedback outcomes and writes:
-
-```text
-~/.forge-hydra/calibration.json
-```
-
-The species runner injects this history into Judge, Meta-HYDRA, and Verifier prompts. If historical confidence has been systematically too high, evaluators are explicitly told to demand stronger evidence before assigning high confidence. If it has been systematically too low, they are told not to understate conclusions that survive verification.
-
-## State files
-
-FORGE creates these outside the repository:
-
-- `runs.jsonl`: task, judge reports, critiques, verifier results, and final answers.
-- `strategies.json`: reusable strategy mutations.
-- `feedback.jsonl`: external outcome ratings.
-- `calibration.json`: confidence-vs-outcome calibration memory.
-- `species-runs.jsonl`: backend routing, fallback, latency, and stage telemetry.
-- `evolution/active.json`: current evolved cognition champion.
-- `evolution/previous.json`: rollback cognition candidate.
-- `evolution/champion-history.jsonl`: promotion, survival, and rollback lineage.
-- `species/active.json`: current evolved species-routing genome.
-- `species/previous.json`: prior species-routing genome.
-- `species/latest-report.json`: latest species tournament result.
-- `predator/active.json`: curated adversarial holdout tasks.
-- `predator/history.jsonl`: Predator benchmark creation history.
-
-## Runtime controls
-
-| Variable | Meaning |
-| --- | --- |
-| `FORGE_AGENT` | OpenClaw agent name, default `main` |
-| `FORGE_OPENCLAW_BIN` | Base OpenClaw executable before species routing |
-| `FORGE_LOCAL` | `1` adds `--local`; set `0` to omit it |
-| `FORGE_HOME` | Persistent FORGE state directory |
-| `FORGE_CONFIG` | Alternate cognition config JSON |
-| `FORGE_SPECIES_CONFIG` | Alternate species-routing JSON |
-| `FORGE_SPECIES_DISABLE` | `1` bypasses the species router |
-| `FORGE_SPECIES_BASE_BIN` | OpenClaw-compatible executable used by the primary species |
-| `FORGE_SPECIES_SECONDARY_BIN` | Example secondary backend executable |
-| `FORGE_SPECIES_SECONDARY_ARGS_JSON` | JSON argv template for the secondary backend |
-| `FORGE_CONCURRENCY` | Max specialist calls running at once |
-| `FORGE_TIMEOUT_MS` | Per-agent timeout |
-| `FORGE_DARWIN_TIMEOUT_MS` | Maximum Darwin/evolution wrapper runtime |
-
-## Mutable cognition and selection pressure
-
-`config/forge-hydra.json` evolves reasoning roles and rubric weights. `config/forge-species.json` evolves which model family handles each role.
-
-The architecture therefore has four distinct pressures:
-
-- **internal adversarial pressure** from HYDRA, Meta-HYDRA, red-team, and regression verification;
-- **cognition selection pressure** from train/holdout evolution of role directives and rubric weights;
-- **species selection pressure** from train/holdout evolution of model routing;
-- **live outcome pressure** from external feedback, calibration, strategy suppression, and Guardian rollback.
-
-## Important limitations
-
-This still does not alter protected model weights. The improvement target is the external cognition system: prompts, roles, evaluators, memory, benchmark curriculum, routing, and backend selection.
-
-True multi-model diversity exists only after multiple species are actually configured. With the default config, every stage still uses the primary OpenClaw backend.
-
-Provider credentials and backend installation remain external operational requirements. FORGE deliberately does not copy secrets into its routing config or logs.
-
-The remaining frontier is increasingly expensive rather than conceptually mysterious: larger benchmark ecosystems, more independent model families, domain-specific champions, executable coding/retrieval tests, delayed forecasting resolution, and long-running empirical comparison of species lineages.
+Beyond this point, the biggest gains are empirical: connect genuinely different top-tier backends, expand high-quality executable benchmarks, collect real outcome data, specialize champions by domain, and run enough controlled evolutionary trials to distinguish genuine improvement from benchmark luck.
