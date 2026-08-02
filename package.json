@@ -4,7 +4,9 @@
   "description": "NemoClaw — run OpenClaw inside OpenShell with NVIDIA inference",
   "license": "Apache-2.0",
   "bin": {
-    "nemoclaw": "./bin/nemoclaw.js"
+    "nemoclaw": "./bin/nemoclaw.js",
+    "apex": "./scripts/apex-chat.mjs",
+    "apex-chat": "./scripts/apex-chat.mjs"
   },
   "scripts": {
     "test": "vitest run",
@@ -61,7 +63,7 @@
     "@typescript-eslint/parser": "^8.58.1",
     "@vitest/coverage-v8": "^4.1.0",
     "ajv": "^8.17.0",
-    "eslint": "^10.1.0",
+    "eslint": "^10.0.1",
     "execa": "^9.6.1",
     "prettier": "^3.8.1",
     "tsx": "^4.21.0",
