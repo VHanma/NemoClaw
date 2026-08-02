@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "description": "Small machine-checkable bootstrap suite for FORGE cognition evolution. Mutation design sees training summaries only; holdout task details are withheld from the mutation prompt.",
+  "tasks": [
+    {
+      "id": "train-arithmetic-17x23",
+      "split": "train",
+      "prompt": "Calculate 17 * 23. Return the exact integer only.",
+      "checks": [{"type":"exact","value":"391","weight":3}]
+    },
+    {
+      "id": "train-js-map",
+      "split": "train",
+      "prompt": "In JavaScript, what does [1,2,3].map(x => x * 2).join('-') return? Return only the resulting string.",
+      "checks": [{"type":"exact","value":"2-4-6","weight":3}]
+    },
+    {
+      "id": "train-rgb-format",
+      "split": "train",
+      "prompt": "Name the three additive RGB primary colors in this exact format: color, color, color. No other text.",
+      "checks": [
+        {"type":"exact","value":"red, green, blue","weight":4},
+        {"type":"maxWords","value":3,"weight":1}
+      ]
+    },
+    {
+      "id": "train-syllogism",
+      "split": "train",
+      "prompt": "All ravens are birds. No birds are mammals. Can any raven be a mammal? Start with Yes or No, then give one short sentence of reasoning.",
+      "checks": [
+        {"type":"regex","value":"^no\\b","flags":"i","weight":3},
+        {"type":"containsAny","values":["no birds are mammals","birds are not mammals"],"weight":2},
+        {"type":"maxWords","value":25,"weight":1}
+      ]
+    },
+    {
+      "id": "holdout-arithmetic-29x37",
+      "split": "holdout",
+      "prompt": "Calculate 29 * 37. Return the exact integer only.",
+      "checks": [{"type":"exact","value":"1073","weight":3}]
+    },
+    {
+      "id": "holdout-js-reverse",
+      "split": "holdout",
+      "prompt": "In JavaScript, what does ['a','b'].reverse().join('') return? Return only the resulting string.",
+      "checks": [{"type":"exact","value":"ba","weight":3}]
+    },
+    {
+      "id": "holdout-evidence-order",
+      "split": "holdout",
+      "prompt": "Reply with exactly: EVIDENCE > INFERENCE > SPECULATION",
+      "checks": [{"type":"exact","value":"EVIDENCE > INFERENCE > SPECULATION","weight":4}]
+    },
+    {
+      "id": "holdout-syllogism",
+      "split": "holdout",
+      "prompt": "Some pilots are musicians. All musicians are creative. Must some pilots be creative? Start with Yes or No, then give one short sentence of reasoning.",
+      "checks": [
+        {"type":"regex","value":"^yes\\b","flags":"i","weight":3},
+        {"type":"containsAny","values":["some pilots are musicians","those pilots","some pilots"],"weight":1},
+        {"type":"contains","value":"creative","weight":1},
+        {"type":"maxWords","value":25,"weight":1}
+      ]
+    }
+  ]
+}
