@@ -2,9 +2,65 @@
 
 APEX Continuity keeps one logical conversation alive without allowing the model prompt to grow forever.
 
-## Behavior
+## Global upgraded-chat entrypoint
 
-Each Pantheon conversation has a stable chat ID. The default is `default`; callers may supply `--chat=<name>` or set `FORGE_CHAT_ID`.
+After NemoClaw is linked or installed from this branch, use either:
+
+```bash
+apex "your message"
+```
+
+or:
+
+```bash
+apex-chat "your message"
+```
+
+Those launchers force the full APEX stack on by default for chat work:
+
+- Continuity
+- Pantheon and archetype councils
+- Cognitive Species routing
+- HYDRA specialist competition
+- Judge + Meta-HYDRA
+- Red Team
+- synthesis + regression verification
+- confidence calibration
+- Guardian health/rollback checks
+- the currently evolved cognition champion and learned strategy memory
+
+The launcher intentionally does not replace or shadow the real `openclaw` executable because the Cognitive Species router may need that binary as its safe base backend.
+
+## Separate chat identities
+
+Each conversation has its own continuity namespace instead of sharing one giant memory pool.
+
+The universal launcher chooses the chat ID in this order:
+
+1. explicit `--chat=<name>`
+2. `FORGE_CHAT_ID`
+3. `APEX_CHAT_ID`
+4. `OPENCLAW_SESSION_ID`
+5. `CHAT_ID` or `SESSION_ID`
+6. the currently selected APEX chat
+7. `main`
+
+Manage named chats with:
+
+```bash
+apex new punch-app
+apex use punch-app
+apex current
+apex list
+```
+
+Then normal messages continue inside that logical chat:
+
+```bash
+apex "continue fixing the camera detection"
+```
+
+## Behavior
 
 For each chat, FORGE stores:
 
@@ -26,4 +82,4 @@ The final synthesizer is explicitly told that conversation length is not a reaso
 
 ## Limits
 
-This prevents the FORGE/OpenClaw stack from depending on one ever-growing model context window. It does not change limits imposed by an external chat client or provider itself. If a provider has a finite context window, APEX stays under it by using rolling memory instead of replaying the entire transcript.
+This makes the **APEX/NemoClaw chat path** use the upgraded system by default. Repository code cannot change how unrelated native ChatGPT app conversations are executed by OpenAI's service, and it cannot remove hard limits imposed by an external chat client or provider. Inside APEX, finite provider context windows are handled through rolling memory instead of replaying the entire transcript.
