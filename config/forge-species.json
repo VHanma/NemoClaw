@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "fallbackSpecies": "primary",
+  "species": [
+    {
+      "id": "primary",
+      "label": "Primary OpenClaw",
+      "enabled": true,
+      "type": "openclaw",
+      "bin": "openclaw",
+      "binEnv": "FORGE_SPECIES_PRIMARY_BIN",
+      "agent": "main",
+      "local": true,
+      "timeoutMs": 180000
+    },
+    {
+      "id": "secondary",
+      "label": "Secondary model family",
+      "enabled": false,
+      "type": "command",
+      "binEnv": "FORGE_SPECIES_SECONDARY_BIN",
+      "argsEnv": "FORGE_SPECIES_SECONDARY_ARGS_JSON",
+      "args": ["--prompt", "{prompt}"],
+      "timeoutMs": 180000
+    },
+    {
+      "id": "local",
+      "label": "Local specialist",
+      "enabled": false,
+      "type": "command",
+      "binEnv": "FORGE_SPECIES_LOCAL_BIN",
+      "argsEnv": "FORGE_SPECIES_LOCAL_ARGS_JSON",
+      "args": ["--prompt", "{prompt}"],
+      "timeoutMs": 240000
+    }
+  ],
+  "routes": {
+    "builder": ["primary"],
+    "skeptic": ["primary"],
+    "systems": ["primary"],
+    "empiricist": ["primary"],
+    "black-swan": ["primary"],
+    "minimalist": ["primary"],
+    "judge": ["primary"],
+    "meta-judge": ["primary"],
+    "critic": ["primary"],
+    "synth": ["primary"],
+    "verifier": ["primary"],
+    "mutator": ["primary"],
+    "evolution": ["primary"],
+    "predator": ["primary"]
+  }
+}
