@@ -14,7 +14,7 @@ One task becomes this pipeline:
 6. Run a regression verifier that compares the repaired answer with the original winner and rejects the repair if it became worse.
 7. Extract up to three reusable reasoning mutations.
 8. Store run history, mutations, and optional human feedback under `~/.forge-hydra/`.
-9. Feed learned strategy rules and recent external feedback into later runs.
+9. Feed trusted strategy rules and recent external feedback into later runs.
 
 This gives the system a mutable cognitive layer even when the underlying model itself is fixed.
 
@@ -43,6 +43,8 @@ node scripts/forge-hydra.mjs feedback RUN_ID 9 "Worked, but the setup step was i
 ```
 
 Recent feedback is included in later runs. That matters because self-evaluation alone can reinforce its own mistakes; external outcomes give the loop an independent signal.
+
+FORGE links each learned mutation to the run that created it. If that originating run later receives an average external rating below **5/10**, its mutations are suppressed from future prompt memory. Unrated mutations remain provisional and are ranked by the mutator's confidence until real outcome data arrives.
 
 ## Runtime controls
 
