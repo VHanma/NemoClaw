@@ -24,8 +24,8 @@ async function readJson(path, fallback = null) {
 }
 
 function stageFromSession(id) {
-  const exact = ['meta-judge','verifier','mutator','critic','synth','judge','builder','skeptic','systems','empirist','empiricist','black-swan','minimalist'];
-  for (const stage of exact) if (id.endsWith(`-${stage}`)) return stage === 'empirist' ? 'empiricist' : stage;
+  const exact = ['meta-judge','verifier','mutator','critic','synth','judge','builder','skeptic','systems','empiricist','black-swan','minimalist'];
+  for (const stage of exact) if (id.endsWith(`-${stage}`)) return stage;
   if (id.includes('forge-evolve')) return 'evolution';
   if (id.includes('predator')) return 'predator';
   return 'default';
@@ -72,7 +72,10 @@ function calibrationHint(calibration) {
 
 async function invoke(species, ctx) {
   const timeout = Math.max(1000, Math.min(900000, Number(species.timeoutMs || 180000)));
-  const bin = (species.binEnv && process.env[species.binEnv]) || species.bin || (species.type === 'openclaw' ? (process.env.FORGE_SPECIES_BASE_BIN || 'openclaw') : null);
+  const bin = (species.binEnv && process.env[species.binEnv])
+    || (species.type === 'openclaw' && species.id === 'primary' ? process.env.FORGE_SPECIES_BASE_BIN : null)
+    || species.bin
+    || (species.type === 'openclaw' ? 'openclaw' : null);
   if (!bin) throw new Error(`Species ${species.id} has no executable. Set ${species.binEnv || 'bin'}.`);
   let args;
   if (species.type === 'openclaw') {
@@ -100,7 +103,9 @@ async function main() {
   const root = process.env.FORGE_HOME || join(homedir(), '.forge-hydra');
   const configPath = resolve(process.env.FORGE_SPECIES_CONFIG || join(process.cwd(), 'config', 'forge-species.json'));
   const activePath = join(root, 'species', 'active.json');
-  const config = await readJson(activePath, null) || await readJson(configPath, null);
+  const config = process.env.FORGE_SPECIES_CONFIG
+    ? await readJson(configPath, null)
+    : (await readJson(activePath, null) || await readJson(configPath, null));
   if (!config) throw new Error(`Species config not found: ${configPath}`);
   const stage = stageFromSession(parsed.sessionId);
   const calibration = await readJson(join(root, 'calibration.json'), null);
