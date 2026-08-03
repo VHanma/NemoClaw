@@ -8,91 +8,61 @@ description: "Documentation-derived skill for nemoclaw user overview."
 
 # NemoClaw User Overview
 
-APEX Continuity keeps one logical conversation alive without allowing the model prompt to grow forever.
+APEX Lite is the phone-sized APEX runtime. It keeps the permanent Pantheon, strict character policy, multi-seat reasoning, King Yujiro final synthesis, Baki as adaptive heir, per-chat continuity, and daily GitHub sync without requiring Docker, OpenShell, or the full NemoClaw sandbox.
 
-## Step 1: Global upgraded-chat entrypoint
+## Step 1: Permanent character rule
 
-After NemoClaw is linked or installed from this branch, use either:
+`config/forge-character-policy.json` is loaded every launch.
+
+- Every named Pantheon figure stays in character in voice, attitude, priorities, and reasoning style.
+- Factual corrections, uncertainty, and evidence limits are expressed in-character.
+- Deadpool and Sheogorath are the only intentional fourth-wall exceptions.
+- One Pantheon figure cannot impersonate another.
+- King Yujiro Hanma delivers the final Court synthesis by default.
+
+## Step 2: Phone install
+
+From Termux, run the installer from a checked-out copy of this repository:
 
 ```bash
+bash scripts/install-apex-lite-termux.sh
+```
+
+The installer places the phone copy under `~/.apex-lite/NemoClaw` and exposes both `apex` and `apex-lite` commands.
+
+It creates `~/.apex-lite/provider.env`. Configure a chat-completions-compatible model endpoint there:
+
+```text
+APEX_LITE_API_URL=
+APEX_LITE_MODEL=
+APEX_LITE_API_KEY=
+```
+
+A local endpoint may omit the API key when it does not require one.
+
+## Step 3: Commands
+
+```bash
+apex status
+apex new main
 apex "your message"
-```
-
-or:
-
-```bash
-apex-chat "your message"
-```
-
-Those launchers force the full APEX stack on by default for chat work:
-
-- Continuity
-- Pantheon and archetype councils
-- Cognitive Species routing
-- HYDRA specialist competition
-- Judge + Meta-HYDRA
-- Red Team
-- synthesis + regression verification
-- confidence calibration
-- Guardian health/rollback checks
-- the currently evolved cognition champion and learned strategy memory
-
-The launcher intentionally does not replace or shadow the real `openclaw` executable because the Cognitive Species router may need that binary as its safe base backend.
-
-## Step 2: Separate chat identities
-
-Each conversation has its own continuity namespace instead of sharing one giant memory pool.
-
-The universal launcher chooses the chat ID in this order:
-
-1. explicit `--chat=<name>`
-2. `FORGE_CHAT_ID`
-3. `APEX_CHAT_ID`
-4. `OPENCLAW_SESSION_ID`
-5. `CHAT_ID` or `SESSION_ID`
-6. the currently selected APEX chat
-7. `main`
-
-Manage named chats with:
-
-```bash
-apex new punch-app
-apex use punch-app
-apex current
+apex new training
+apex use main
 apex list
+apex current
+apex sync
 ```
 
-Then normal messages continue inside that logical chat:
+The active chat transcript is stored under `~/.apex-lite/chats/<chat-name>/transcript.jsonl`.
 
-```bash
-apex "continue fixing the camera detection"
-```
+## Step 4: Phone behavior
 
-## Step 3: Behavior
+Each message selects a small high-value subset of the Pantheon. Yujiro and Baki are permanently included. Relevant seats reason in parallel batches, then King Yujiro receives their briefings and delivers the final answer. This preserves the multi-perspective APEX design while keeping phone compute and network use lower than the full NemoClaw stack.
 
-For each chat, FORGE stores:
-
-- `~/.forge-hydra/continuity/<chat-id>/transcript.jsonl` — append-only full user/assistant transcript.
-- `~/.forge-hydra/continuity/<chat-id>/state.json` — compact rolling memory plus the most recent verbatim turns.
-
-Older turns are never deleted from the transcript archive. When the active recent window grows past the configured turn or character budget, APEX asks a high-priority model species to compress the older working-context material into durable memory, keeps the newest turns verbatim, and continues using the same chat ID.
-
-The compactor is instructed to preserve goals, decisions, corrections, constraints, exact identifiers/numbers/paths/commands when important, failures, unresolved work, and the distinction between fact, inference, speculation, and symbolic interpretation.
-
-The final synthesizer is explicitly told that conversation length is not a reason to ask the user to start a new chat. Context rollover is handled by Continuity.
-
-## Step 4: Controls
-
-- `FORGE_CHAT_ID` — stable logical conversation ID.
-- `--chat=<name>` — per-run override.
-- `FORGE_CONTINUITY_RECENT_TURNS` — number of recent transcript entries retained verbatim before compaction, default `12`.
-- `FORGE_CONTINUITY_RECENT_CHARS` — recent working-memory character budget, default `26000`.
-
-## Step 5: Limits
-
-This makes the **APEX/NemoClaw chat path** use the upgraded system by default. Repository code cannot change how unrelated native ChatGPT app conversations are executed by OpenAI's service, and it cannot remove hard limits imposed by an external chat client or provider. Inside APEX, finite provider context windows are handled through rolling memory instead of replaying the entire transcript.
+By default APEX Lite checks GitHub for a fast-forward update at most once per day. Set `APEX_LITE_AUTO_SYNC=0` in `provider.env` to disable that behavior.
 
 ## References
 
+- [references/forge-continuity.md](references/forge-continuity.md)
 - [references/forge-evolution.md](references/forge-evolution.md)
 - [references/forge-hydra.md](references/forge-hydra.md)
