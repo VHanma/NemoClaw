@@ -6,7 +6,8 @@
   "bin": {
     "nemoclaw": "./bin/nemoclaw.js",
     "apex": "./scripts/apex-chat.mjs",
-    "apex-chat": "./scripts/apex-chat.mjs"
+    "apex-chat": "./scripts/apex-chat.mjs",
+    "apex-lite": "./scripts/apex-lite.mjs"
   },
   "scripts": {
     "test": "vitest run",
@@ -44,6 +45,7 @@
     "nemoclaw/package.json",
     "nemoclaw-blueprint/",
     "scripts/",
+    "config/",
     "Dockerfile",
     ".dockerignore"
   ],
