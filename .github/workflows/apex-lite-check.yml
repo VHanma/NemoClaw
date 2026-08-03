@@ -1,0 +1,43 @@
+name: Check APEX Lite Android
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/apex-lite-android"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  apex-lite:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Validate APEX Lite files
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/apex-lite.mjs
+          bash -n scripts/install-apex-lite-termux.sh
+          node -e "JSON.parse(require('fs').readFileSync('config/forge-archetypes.json','utf8')); JSON.parse(require('fs').readFileSync('config/forge-archetypes-extensions.json','utf8')); const p=JSON.parse(require('fs').readFileSync('config/forge-character-policy.json','utf8')); if(p.strict !== true) throw new Error('strict character lock must be on'); if(JSON.stringify(p.exceptions)!==JSON.stringify(['Deadpool','Sheogorath'])) throw new Error('only Deadpool and Sheogorath may break character');"
+
+      - name: Smoke test phone status mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          export APEX_LITE_HOME="$(mktemp -d)"
+          export APEX_LITE_AUTO_SYNC=0
+          node scripts/apex-lite.mjs status | tee apex-lite-status.txt
+          grep -F "character lock: ON" apex-lite-status.txt
+          grep -F "fourth-wall exceptions: Deadpool, Sheogorath" apex-lite-status.txt
+          grep -F "King" config/forge-archetypes-extensions.json
+          grep -F "Yujiro Hanma" config/forge-archetypes-extensions.json
+          grep -F "Baki Hanma" config/forge-archetypes-extensions.json
