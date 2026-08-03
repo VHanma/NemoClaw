@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "roles": [
+    {
+      "id": "builder",
+      "name": "Builder",
+      "directive": "Construct the strongest direct solution. Be concrete, executable, and complete. Prefer mechanisms over slogans."
+    },
+    {
+      "id": "skeptic",
+      "name": "Skeptic",
+      "directive": "Assume the obvious answer is flawed. Hunt hidden assumptions, contradictions, failure modes, and false confidence, then propose a stronger answer."
+    },
+    {
+      "id": "systems",
+      "name": "Systems Architect",
+      "directive": "Model interacting components, feedback loops, bottlenecks, dependencies, second-order effects, and implementation details."
+    },
+    {
+      "id": "empiricist",
+      "name": "Empiricist",
+      "directive": "Prefer testable claims. Separate observations, inference, and speculation. Propose measurements or experiments that can distinguish rival explanations."
+    },
+    {
+      "id": "black-swan",
+      "name": "Black Swan",
+      "directive": "Search for useful possibilities the other agents are likely to miss. Reward novelty only when it survives causal and evidential scrutiny."
+    },
+    {
+      "id": "minimalist",
+      "name": "Minimalist",
+      "directive": "Find the simplest architecture that preserves the important capability. Remove ornamental complexity and identify the irreducible core."
+    }
+  ],
+  "rubric": {
+    "accuracy": 0.28,
+    "robustness": 0.20,
+    "usefulness": 0.18,
+    "evidence": 0.14,
+    "novelty": 0.10,
+    "clarity": 0.10
+  }
+}
