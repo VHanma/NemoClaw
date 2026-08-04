@@ -43,13 +43,24 @@ ln -sf "$BIN_DIR/apex" "$BIN_DIR/apex-lite"
 
 if [ ! -f "$PROVIDER" ]; then
   cat > "$PROVIDER" <<'EOF2'
-# APEX Lite talks to any chat-completions-compatible endpoint.
-# Fill these values, then run: apex status
+# APEX Lite zero-dollar provider stack.
+# Add any free-provider keys you have. APEX rotates/falls back automatically.
+APEX_LITE_GEMINI_KEY=
+APEX_LITE_OPENROUTER_KEY=
+APEX_LITE_GROQ_KEY=
+APEX_LITE_GITHUB_TOKEN=
+
+# Zero-dollar mode is the default.
+APEX_LITE_FREE_ONLY=1
+APEX_LITE_SINGLE_CALL=1
+APEX_LITE_PROVIDER=auto
+
+# Optional custom provider fallback. Ignored while FREE_ONLY=1.
 APEX_LITE_API_URL=
 APEX_LITE_MODEL=
 APEX_LITE_API_KEY=
 
-# Optional controls
+# Runtime controls
 APEX_LITE_AUTO_SYNC=1
 APEX_LITE_ARCHETYPES=8
 APEX_LITE_PARALLEL=3
@@ -62,5 +73,6 @@ printf 'Command: %s\n' "$BIN_DIR/apex"
 printf 'Pantheon: %s\n' "$REPO/config/forge-archetypes-extensions.json"
 printf 'Character lock: %s\n' "$REPO/config/forge-character-policy.json"
 printf 'Provider config: %s\n\n' "$PROVIDER"
-printf 'Next: edit provider.env, then run: apex status\n'
+printf 'Zero-dollar mode: apex free\n'
+printf 'Provider status: apex providers\n'
 printf 'Chat: apex "your message"\n'
