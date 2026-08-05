@@ -37,7 +37,6 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Set;
 
 public class MainActivity extends Activity {
@@ -124,12 +123,14 @@ public class MainActivity extends Activity {
         title.setGravity(Gravity.CENTER_HORIZONTAL);
         root.addView(title);
 
-        TextView sub = text("9-layer stereo frequency generator", 14);
+        TextView sub = text("9-layer independent LEFT + RIGHT stereo generator", 14);
         sub.setGravity(Gravity.CENTER_HORIZONTAL);
         sub.setTextColor(Color.rgb(175, 185, 205));
         root.addView(sub);
 
-        TextView note = text("Enter any numeric frequency, including decimals or scientific notation. Requested values are preserved exactly in presets. Physical playback is still limited by the phone's sample rate, DAC, speakers/headphones, and human hearing. Start at low volume.", 12);
+        TextView note = text(
+                "Each channel now has its own Hz, Wave, Phase and Volume. LEFT controls affect only the left channel; RIGHT controls affect only the right channel. Phase is an absolute per-channel oscillator offset. With different left/right frequencies, their phase relationship naturally changes over time. Requested frequency text is preserved exactly in presets. Physical playback is limited by the phone's sample rate, DAC, speakers/headphones, and human hearing. Start at low volume.",
+                12);
         note.setTextColor(Color.rgb(190, 190, 195));
         note.setPadding(dp(6), dp(10), dp(6), dp(10));
         root.addView(note);
@@ -213,7 +214,7 @@ public class MainActivity extends Activity {
         r.enabled.setTextColor(Color.WHITE);
         r.enabled.setChecked(index == 0);
         r.reverse = new Switch(this);
-        r.reverse.setText("Reverse");
+        r.reverse.setText("Reverse layer");
         r.reverse.setTextColor(Color.WHITE);
         r.enabled.setOnCheckedChangeListener((b, checked) -> refreshSnapshot());
         r.reverse.setOnCheckedChangeListener((b, checked) -> refreshSnapshot());
@@ -221,51 +222,69 @@ public class MainActivity extends Activity {
         toggles.addView(r.reverse, new LinearLayout.LayoutParams(0, dp(48), 1));
         box.addView(toggles);
 
+        r.leftFreq = edit("432", "Left Hz");
+        r.leftWaveform = spinner(WAVEFORMS);
+        r.leftPhase = spinner(PHASES);
+        r.leftVolLabel = text("LEFT volume: 25%", 13);
+        r.leftVol = volumeSeek(25, r.leftVolLabel, "LEFT volume: ");
+        attachChannelListeners(r.leftWaveform, r.leftPhase);
+        box.addView(channelPanel("LEFT CHANNEL", Color.rgb(95, 205, 255),
+                r.leftFreq, r.leftWaveform, r.leftPhase, r.leftVolLabel, r.leftVol));
+
+        r.rightFreq = edit("432", "Right Hz");
+        r.rightWaveform = spinner(WAVEFORMS);
+        r.rightPhase = spinner(PHASES);
+        r.rightVolLabel = text("RIGHT volume: 25%", 13);
+        r.rightVol = volumeSeek(25, r.rightVolLabel, "RIGHT volume: ");
+        attachChannelListeners(r.rightWaveform, r.rightPhase);
+        box.addView(channelPanel("RIGHT CHANNEL", Color.rgb(255, 135, 180),
+                r.rightFreq, r.rightWaveform, r.rightPhase, r.rightVolLabel, r.rightVol));
+        return r;
+    }
+
+    private void attachChannelListeners(Spinner waveform, Spinner phase) {
+        waveform.setOnItemSelectedListener(itemListener(this::refreshSnapshot));
+        phase.setOnItemSelectedListener(itemListener(this::refreshSnapshot));
+    }
+
+    private LinearLayout channelPanel(String titleValue, int accentColor,
+                                      EditText frequency, Spinner waveform, Spinner phase,
+                                      TextView volumeLabel, SeekBar volume) {
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(8), dp(8), dp(8), dp(8));
+        panel.setBackgroundColor(Color.rgb(13, 16, 24));
+        LinearLayout.LayoutParams panelParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        panelParams.setMargins(0, dp(7), 0, dp(2));
+        panel.setLayoutParams(panelParams);
+
+        TextView channelTitle = text(titleValue, 16);
+        channelTitle.setTextColor(accentColor);
+        panel.addView(channelTitle);
+        panel.addView(column("Frequency (Hz)", frequency));
+
         LinearLayout modes = new LinearLayout(this);
         modes.setOrientation(LinearLayout.HORIZONTAL);
-        r.waveform = spinner(WAVEFORMS);
-        r.phase = spinner(PHASES);
-        r.waveform.setOnItemSelectedListener(itemListener(this::refreshSnapshot));
-        r.phase.setOnItemSelectedListener(itemListener(this::refreshSnapshot));
-        LinearLayout waveCol = column("Wave", r.waveform);
-        LinearLayout phaseCol = column("R phase vs L", r.phase);
-        modes.addView(waveCol, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        modes.addView(phaseCol, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        box.addView(modes);
-
-        LinearLayout freqs = new LinearLayout(this);
-        freqs.setOrientation(LinearLayout.HORIZONTAL);
-        r.leftFreq = edit("432", "Left Hz");
-        r.rightFreq = edit("432", "Right Hz");
-        freqs.addView(column("Left Hz", r.leftFreq), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        freqs.addView(column("Right Hz", r.rightFreq), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        box.addView(freqs);
-
-        r.leftVolLabel = text("Left volume: 25%", 13);
-        r.leftVol = volumeSeek(25, r.leftVolLabel, "Left volume: ");
-        box.addView(r.leftVolLabel);
-        box.addView(r.leftVol);
-
-        r.rightVolLabel = text("Right volume: 25%", 13);
-        r.rightVol = volumeSeek(25, r.rightVolLabel, "Right volume: ");
-        box.addView(r.rightVolLabel);
-        box.addView(r.rightVol);
-        return r;
+        modes.addView(column("Wave", waveform), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        modes.addView(column("Phase", phase), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        panel.addView(modes);
+        panel.addView(volumeLabel);
+        panel.addView(volume);
+        return panel;
     }
 
     private LinearLayout column(String label, View child) {
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         col.addView(text(label, 12));
-        col.addView(child, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
+        col.addView(child, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
         return col;
     }
 
     private Spinner spinner(String[] values) {
         Spinner s = new Spinner(this);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, values);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, values);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         s.setAdapter(adapter);
         return s;
@@ -301,8 +320,10 @@ public class MainActivity extends Activity {
             LayerConfig c = new LayerConfig();
             c.enabled = r.enabled.isChecked();
             c.reverse = r.reverse.isChecked();
-            c.waveform = r.waveform.getSelectedItemPosition();
-            c.phaseDegrees = PHASE_VALUES[Math.max(0, r.phase.getSelectedItemPosition())];
+            c.leftWaveform = r.leftWaveform.getSelectedItemPosition();
+            c.rightWaveform = r.rightWaveform.getSelectedItemPosition();
+            c.leftPhaseDegrees = phaseDegrees(r.leftPhase);
+            c.rightPhaseDegrees = phaseDegrees(r.rightPhase);
             c.leftHz = parseDouble(r.leftFreq.getText().toString());
             c.rightHz = parseDouble(r.rightFreq.getText().toString());
             c.leftVolume = r.leftVol.getProgress() / 100.0;
@@ -310,6 +331,11 @@ public class MainActivity extends Activity {
             configs[i] = c;
         }
         liveConfigs = configs;
+    }
+
+    private int phaseDegrees(Spinner spinner) {
+        int position = Math.max(0, Math.min(PHASE_VALUES.length - 1, spinner.getSelectedItemPosition()));
+        return PHASE_VALUES[position];
     }
 
     private double parseDouble(String value) {
@@ -324,20 +350,12 @@ public class MainActivity extends Activity {
     private void startAudio() {
         if (running) return;
         refreshSnapshot();
-        int min = AudioTrack.getMinBufferSize(SAMPLE_RATE,
-                AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT);
+        int min = AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT);
         int bufferBytes = Math.max(min, 8192);
         try {
             audioTrack = new AudioTrack.Builder()
-                    .setAudioAttributes(new AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                            .build())
-                    .setAudioFormat(new AudioFormat.Builder()
-                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                            .setSampleRate(SAMPLE_RATE)
-                            .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
-                            .build())
+                    .setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
+                    .setAudioFormat(new AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(SAMPLE_RATE).setChannelMask(AudioFormat.CHANNEL_OUT_STEREO).build())
                     .setTransferMode(AudioTrack.MODE_STREAM)
                     .setBufferSizeInBytes(bufferBytes)
                     .build();
@@ -345,7 +363,7 @@ public class MainActivity extends Activity {
             audioTrack.play();
             audioThread = new Thread(this::audioLoop, "FrequencyForgeAudio");
             audioThread.start();
-            status.setText("Playing • 48 kHz stereo engine");
+            status.setText("Playing • independent LEFT + RIGHT engine");
         } catch (Exception e) {
             running = false;
             status.setText("Audio start failed: " + e.getMessage());
@@ -357,28 +375,22 @@ public class MainActivity extends Activity {
         short[] pcm = new short[frames * 2];
         double[] phaseL = new double[LAYER_COUNT];
         double[] phaseR = new double[LAYER_COUNT];
-
         while (running) {
             LayerConfig[] cfgs = liveConfigs;
             for (int frame = 0; frame < frames; frame++) {
-                double left = 0.0;
-                double right = 0.0;
-                int activeL = 0;
-                int activeR = 0;
-
+                double left = 0.0, right = 0.0;
+                int activeL = 0, activeR = 0;
                 for (int i = 0; i < cfgs.length && i < LAYER_COUNT; i++) {
                     LayerConfig c = cfgs[i];
                     if (!c.enabled) continue;
                     double dir = c.reverse ? -1.0 : 1.0;
-                    double offset = Math.toRadians(c.phaseDegrees);
-                    left += wave(phaseL[i], c.waveform) * c.leftVolume;
-                    right += wave(phaseR[i] + offset, c.waveform) * c.rightVolume;
+                    left += wave(phaseL[i] + Math.toRadians(c.leftPhaseDegrees), c.leftWaveform) * c.leftVolume;
+                    right += wave(phaseR[i] + Math.toRadians(c.rightPhaseDegrees), c.rightWaveform) * c.rightVolume;
                     if (c.leftVolume > 0) activeL++;
                     if (c.rightVolume > 0) activeR++;
                     phaseL[i] = wrap(phaseL[i] + dir * TWO_PI * c.leftHz / SAMPLE_RATE);
                     phaseR[i] = wrap(phaseR[i] + dir * TWO_PI * c.rightHz / SAMPLE_RATE);
                 }
-
                 if (activeL > 1) left /= activeL;
                 if (activeR > 1) right /= activeR;
                 left = Math.max(-1.0, Math.min(1.0, left));
@@ -417,9 +429,7 @@ public class MainActivity extends Activity {
         running = false;
         Thread t = audioThread;
         audioThread = null;
-        if (t != null) {
-            try { t.join(350); } catch (InterruptedException ignored) {}
-        }
+        if (t != null) try { t.join(350); } catch (InterruptedException ignored) {}
         AudioTrack at = audioTrack;
         audioTrack = null;
         if (at != null) {
@@ -439,15 +449,17 @@ public class MainActivity extends Activity {
         }
         try {
             JSONObject root = new JSONObject();
-            root.put("version", 1);
+            root.put("version", 2);
             root.put("sampleRate", SAMPLE_RATE);
             JSONArray layers = new JSONArray();
             for (LayerRow r : rows) {
                 JSONObject j = new JSONObject();
                 j.put("enabled", r.enabled.isChecked());
                 j.put("reverse", r.reverse.isChecked());
-                j.put("waveform", r.waveform.getSelectedItemPosition());
-                j.put("phase", r.phase.getSelectedItemPosition());
+                j.put("leftWaveform", r.leftWaveform.getSelectedItemPosition());
+                j.put("rightWaveform", r.rightWaveform.getSelectedItemPosition());
+                j.put("leftPhase", r.leftPhase.getSelectedItemPosition());
+                j.put("rightPhase", r.rightPhase.getSelectedItemPosition());
                 j.put("leftHzText", r.leftFreq.getText().toString());
                 j.put("rightHzText", r.rightFreq.getText().toString());
                 j.put("leftVolume", r.leftVol.getProgress());
@@ -457,10 +469,7 @@ public class MainActivity extends Activity {
             root.put("layers", layers);
             Set<String> names = new HashSet<>(prefs.getStringSet("names", Collections.emptySet()));
             names.add(name);
-            prefs.edit()
-                    .putString("preset:" + name, root.toString())
-                    .putStringSet("names", names)
-                    .apply();
+            prefs.edit().putString("preset:" + name, root.toString()).putStringSet("names", names).apply();
             refreshPresetSpinner();
             selectPreset(name);
             status.setText("Preset saved exactly: " + name);
@@ -474,8 +483,7 @@ public class MainActivity extends Activity {
         ArrayList<String> names = new ArrayList<>(prefs.getStringSet("names", Collections.emptySet()));
         Collections.sort(names, String.CASE_INSENSITIVE_ORDER);
         if (names.isEmpty()) names.add("No saved presets");
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, names);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, names);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         presetSpinner.setAdapter(adapter);
     }
@@ -500,14 +508,27 @@ public class MainActivity extends Activity {
             return;
         }
         try {
-            JSONArray layers = new JSONObject(json).getJSONArray("layers");
+            JSONObject root = new JSONObject(json);
+            int version = root.optInt("version", 1);
+            JSONArray layers = root.getJSONArray("layers");
             for (int i = 0; i < rows.size() && i < layers.length(); i++) {
                 JSONObject j = layers.getJSONObject(i);
                 LayerRow r = rows.get(i);
                 r.enabled.setChecked(j.optBoolean("enabled", false));
                 r.reverse.setChecked(j.optBoolean("reverse", false));
-                r.waveform.setSelection(j.optInt("waveform", 0));
-                r.phase.setSelection(j.optInt("phase", 0));
+                if (version >= 2 || j.has("leftWaveform") || j.has("rightWaveform")) {
+                    r.leftWaveform.setSelection(safeSelection(j.optInt("leftWaveform", 0), WAVEFORMS.length));
+                    r.rightWaveform.setSelection(safeSelection(j.optInt("rightWaveform", 0), WAVEFORMS.length));
+                    r.leftPhase.setSelection(safeSelection(j.optInt("leftPhase", 0), PHASES.length));
+                    r.rightPhase.setSelection(safeSelection(j.optInt("rightPhase", 0), PHASES.length));
+                } else {
+                    int oldWave = safeSelection(j.optInt("waveform", 0), WAVEFORMS.length);
+                    int oldRightPhase = safeSelection(j.optInt("phase", 0), PHASES.length);
+                    r.leftWaveform.setSelection(oldWave);
+                    r.rightWaveform.setSelection(oldWave);
+                    r.leftPhase.setSelection(0);
+                    r.rightPhase.setSelection(oldRightPhase);
+                }
                 r.leftFreq.setText(j.optString("leftHzText", "432"));
                 r.rightFreq.setText(j.optString("rightHzText", "432"));
                 r.leftVol.setProgress(j.optInt("leftVolume", 25));
@@ -515,10 +536,14 @@ public class MainActivity extends Activity {
             }
             presetName.setText(name);
             refreshSnapshot();
-            status.setText("Loaded exactly: " + name);
+            status.setText(version >= 2 ? "Loaded exactly: " + name : "Loaded + migrated v1 preset: " + name);
         } catch (Exception e) {
             status.setText("Preset load failed: " + e.getMessage());
         }
+    }
+
+    private int safeSelection(int value, int length) {
+        return Math.max(0, Math.min(length - 1, value));
     }
 
     private void requestWavExport() {
@@ -573,8 +598,8 @@ public class MainActivity extends Activity {
                         LayerConfig c = cfgs[i];
                         if (!c.enabled) continue;
                         double dir = c.reverse ? -1.0 : 1.0;
-                        left += wave(phaseL[i], c.waveform) * c.leftVolume;
-                        right += wave(phaseR[i] + Math.toRadians(c.phaseDegrees), c.waveform) * c.rightVolume;
+                        left += wave(phaseL[i] + Math.toRadians(c.leftPhaseDegrees), c.leftWaveform) * c.leftVolume;
+                        right += wave(phaseR[i] + Math.toRadians(c.rightPhaseDegrees), c.rightWaveform) * c.rightVolume;
                         if (c.leftVolume > 0) activeL++;
                         if (c.rightVolume > 0) activeR++;
                         phaseL[i] = wrap(phaseL[i] + dir * TWO_PI * c.leftHz / SAMPLE_RATE);
@@ -626,8 +651,10 @@ public class MainActivity extends Activity {
         LinearLayout container;
         Switch enabled;
         Switch reverse;
-        Spinner waveform;
-        Spinner phase;
+        Spinner leftWaveform;
+        Spinner rightWaveform;
+        Spinner leftPhase;
+        Spinner rightPhase;
         EditText leftFreq;
         EditText rightFreq;
         SeekBar leftVol;
@@ -639,8 +666,10 @@ public class MainActivity extends Activity {
     private static class LayerConfig {
         boolean enabled;
         boolean reverse;
-        int waveform;
-        int phaseDegrees;
+        int leftWaveform;
+        int rightWaveform;
+        int leftPhaseDegrees;
+        int rightPhaseDegrees;
         double leftHz;
         double rightHz;
         double leftVolume;
