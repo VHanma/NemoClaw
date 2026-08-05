@@ -5,6 +5,8 @@ REPO_URL="https://github.com/VHanma/NemoClaw.git"
 ROOT="${APEX_LITE_HOME:-$HOME/.apex-lite}"
 REPO="$ROOT/NemoClaw"
 PROVIDER="$ROOT/provider.env"
+STASHED=0
+STASH_NAME=""
 
 if [ -n "${PREFIX:-}" ] && [ -d "$PREFIX/bin" ]; then
   BIN_DIR="$PREFIX/bin"
@@ -28,6 +30,15 @@ if [ ! -d "$REPO/.git" ]; then
   rm -rf "$REPO"
   git clone --depth 1 --branch main "$REPO_URL" "$REPO"
 else
+  # Preserve any local edits before updating. Do not reapply them automatically,
+  # because stale edits to the runtime can break the repaired version again.
+  if [ -n "$(git -C "$REPO" status --porcelain)" ]; then
+    STASH_NAME="apex-lite-auto-repair-$(date +%Y%m%d-%H%M%S)"
+    echo "Local NemoClaw edits detected. Saving them safely as: $STASH_NAME"
+    git -C "$REPO" stash push -u -m "$STASH_NAME" >/dev/null
+    STASHED=1
+  fi
+
   git -C "$REPO" fetch origin main
   git -C "$REPO" checkout main
   git -C "$REPO" pull --ff-only origin main
@@ -73,5 +84,9 @@ chmod 600 "$PROVIDER"
 printf '\nAPEX Lite repair complete.\n'
 printf 'Repo: %s\n' "$REPO"
 printf 'Provider file: %s\n' "$PROVIDER"
-printf 'Launcher: %s\n\n' "$BIN_DIR/apex"
+printf 'Launcher: %s\n' "$BIN_DIR/apex"
+if [ "$STASHED" -eq 1 ]; then
+  printf 'Saved old local edits in git stash: %s\n' "$STASH_NAME"
+fi
+printf '\n'
 "$BIN_DIR/apex" providers
