@@ -1,25 +1,41 @@
 #!/usr/bin/env bash
 set -eu
 
+REPO_URL="https://github.com/VHanma/NemoClaw.git"
 ROOT="${APEX_LITE_HOME:-$HOME/.apex-lite}"
 REPO="$ROOT/NemoClaw"
 PROVIDER="$ROOT/provider.env"
-BIN_DIR="${PREFIX:-$HOME/.local}/bin"
 
-mkdir -p "$ROOT"
-mkdir -p "$BIN_DIR"
-
-if [ ! -d "$REPO/.git" ]; then
-  echo "APEX Lite repo missing at $REPO" >&2
-  exit 1
+if [ -n "${PREFIX:-}" ] && [ -d "$PREFIX/bin" ]; then
+  BIN_DIR="$PREFIX/bin"
+else
+  BIN_DIR="$HOME/.local/bin"
 fi
 
-git -C "$REPO" fetch origin main
-git -C "$REPO" checkout main
-git -C "$REPO" pull --ff-only origin main
+mkdir -p "$ROOT" "$BIN_DIR"
+
+# Self-heal prerequisites on Termux.
+if command -v pkg >/dev/null 2>&1; then
+  command -v git >/dev/null 2>&1 || pkg install -y git
+  command -v node >/dev/null 2>&1 || pkg install -y nodejs-lts
+fi
+command -v git >/dev/null 2>&1 || { echo "git is required" >&2; exit 1; }
+command -v node >/dev/null 2>&1 || { echo "Node.js is required" >&2; exit 1; }
+
+# Repair from zero if the checkout vanished.
+if [ ! -d "$REPO/.git" ]; then
+  echo "APEX Lite repo missing. Rebuilding it now..."
+  rm -rf "$REPO"
+  git clone --depth 1 --branch main "$REPO_URL" "$REPO"
+else
+  git -C "$REPO" fetch origin main
+  git -C "$REPO" checkout main
+  git -C "$REPO" pull --ff-only origin main
+fi
 
 chmod +x "$REPO/scripts/apex-lite.mjs"
 
+# Rebuild the global Termux launcher so it always points at the repaired checkout.
 cat > "$BIN_DIR/apex" <<EOF2
 #!/usr/bin/env bash
 export APEX_LITE_HOME="$ROOT"
@@ -28,6 +44,7 @@ EOF2
 chmod +x "$BIN_DIR/apex"
 ln -sf "$BIN_DIR/apex" "$BIN_DIR/apex-lite"
 
+# Never overwrite an existing provider file or its keys. Recreate only when missing.
 if [ ! -f "$PROVIDER" ]; then
   cat > "$PROVIDER" <<'EOF2'
 # APEX Lite zero-dollar provider stack
@@ -53,5 +70,8 @@ fi
 chmod 600 "$PROVIDER"
 
 "$BIN_DIR/apex" free
-printf '\nRepair complete.\n'
+printf '\nAPEX Lite repair complete.\n'
+printf 'Repo: %s\n' "$REPO"
+printf 'Provider file: %s\n' "$PROVIDER"
+printf 'Launcher: %s\n\n' "$BIN_DIR/apex"
 "$BIN_DIR/apex" providers
