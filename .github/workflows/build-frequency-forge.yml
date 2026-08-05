@@ -41,13 +41,13 @@ jobs:
       - name: Prepare install APK
         run: |
           mkdir -p dist
-          cp frequency-forge-android/app/build/outputs/apk/debug/app-debug.apk dist/FrequencyForge-1.0.0.apk
-          sha256sum dist/FrequencyForge-1.0.0.apk | tee dist/SHA256SUMS.txt
+          cp frequency-forge-android/app/build/outputs/apk/debug/app-debug.apk dist/FrequencyForge-1.1.0.apk
+          sha256sum dist/FrequencyForge-1.1.0.apk | tee dist/SHA256SUMS.txt
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FrequencyForge-APK
+          name: FrequencyForge-APK-v1.1.0
           path: dist/*
           if-no-files-found: error
           retention-days: 30
