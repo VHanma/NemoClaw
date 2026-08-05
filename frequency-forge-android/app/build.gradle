@@ -7,10 +7,10 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.vhanma.frequencyforge'
+        applicationId 'com.vhanma.frequencyforge.stereo'
         minSdk 26
         targetSdk 35
-        versionCode 2
+        versionCode 1
         versionName '1.1.0'
     }
 
