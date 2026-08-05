@@ -4,7 +4,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="Frequency Forge"
+        android:label="Frequency Forge Stereo"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
         <activity
