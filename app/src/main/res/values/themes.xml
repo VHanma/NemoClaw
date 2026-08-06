@@ -1,0 +1,9 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.Aethena" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">@color/aethena_dark</item>
+        <item name="android:statusBarColor">@color/aethena_dark</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>
