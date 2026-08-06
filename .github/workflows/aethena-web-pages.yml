@@ -1,0 +1,79 @@
+name: Aethena Web
+
+on:
+  push:
+    branches:
+      - aethena-web-build
+    paths:
+      - "aethena-web/**"
+      - ".github/workflows/aethena-web-pages.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "aethena-web/**"
+      - ".github/workflows/aethena-web-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: aethena-web-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: aethena-web/package.json
+
+      - name: Install dependencies
+        working-directory: aethena-web
+        run: npm install --no-audit --no-fund
+
+      - name: Build browser app
+        shell: bash
+        run: |
+          set -o pipefail
+          cd aethena-web
+          npm run build 2>&1 | tee ../aethena-web-build.log
+
+      - name: Upload browser build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aethena-web-build-log
+          path: aethena-web-build.log
+          if-no-files-found: error
+
+      - name: Configure Pages
+        if: success()
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: success()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: aethena-web/dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
