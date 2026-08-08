@@ -149,7 +149,7 @@ class MainActivity : ComponentActivity() {
                                 Text(status)
                                 if (installing || modelProgress in 1..99) {
                                     LinearProgressIndicator(
-                                        progress = { modelProgress / 100f },
+                                        progress = modelProgress / 100f,
                                         modifier = Modifier.fillMaxWidth(),
                                     )
                                 }
