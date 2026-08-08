@@ -1,0 +1,94 @@
+name: Build Voice Vault APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - voice-vault-apk
+    paths:
+      - "voice-vault/**"
+      - ".github/workflows/build-voice-vault.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout NemoClaw
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        shell: bash
+        run: |
+          sdkmanager "ndk;28.0.13004108" >/dev/null
+          echo "ANDROID_NDK=$ANDROID_HOME/ndk/28.0.13004108" >> "$GITHUB_ENV"
+
+      - name: Clone pinned sherpa-onnx
+        shell: bash
+        run: |
+          git clone --depth 1 --branch v1.13.4 https://github.com/k2-fsa/sherpa-onnx.git sherpa-onnx
+
+      - name: Build sherpa-onnx JNI for arm64
+        shell: bash
+        working-directory: sherpa-onnx
+        run: |
+          chmod +x build-android-arm64-v8a.sh
+          ./build-android-arm64-v8a.sh
+          mkdir -p android/SherpaOnnxTtsEngine/app/src/main/jniLibs/arm64-v8a
+          cp build-android-arm64-v8a/install/lib/lib*.so android/SherpaOnnxTtsEngine/app/src/main/jniLibs/arm64-v8a/
+          ls -lh android/SherpaOnnxTtsEngine/app/src/main/jniLibs/arm64-v8a/
+
+      - name: Apply Voice Vault app overlay
+        shell: bash
+        run: |
+          cp -R voice-vault/overlay/app/. sherpa-onnx/android/SherpaOnnxTtsEngine/app/
+          chmod +x sherpa-onnx/android/SherpaOnnxTtsEngine/gradlew
+
+      - name: Build APK
+        shell: bash
+        working-directory: sherpa-onnx/android/SherpaOnnxTtsEngine
+        run: |
+          ./gradlew --no-daemon clean assembleDebug --stacktrace
+
+      - name: Collect APK
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp sherpa-onnx/android/SherpaOnnxTtsEngine/app/build/outputs/apk/debug/app-debug.apk dist/VoiceVault-arm64-debug.apk
+          ls -lh dist/VoiceVault-arm64-debug.apk
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoiceVault-arm64-debug
+          path: dist/VoiceVault-arm64-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish rolling APK release
+        if: github.ref == 'refs/heads/voice-vault-apk'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view voice-vault-latest >/dev/null 2>&1; then
+            gh release upload voice-vault-latest dist/VoiceVault-arm64-debug.apk --clobber
+          else
+            gh release create voice-vault-latest dist/VoiceVault-arm64-debug.apk \
+              --target "$GITHUB_SHA" \
+              --title "Voice Vault Android - latest test build" \
+              --notes "Offline multi-voice cloning reader test build. PocketTTS model downloads once inside the app."
+          fi
