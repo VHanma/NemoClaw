@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.vhanma.voicevault"
+    namespace = "com.k2fsa.sherpa.onnx.tts.engine"
     compileSdk = 34
 
     defaultConfig {
