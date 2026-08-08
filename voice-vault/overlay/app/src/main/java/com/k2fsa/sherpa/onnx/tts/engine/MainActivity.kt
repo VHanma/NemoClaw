@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,12 +17,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Divider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -237,7 +237,7 @@ class MainActivity : ComponentActivity() {
                                                 modifier = Modifier.fillMaxWidth().padding(10.dp),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                             ) {
-                                                Column(modifier = Modifier.weight(1f)) {
+                                                Column {
                                                     Text(if (selected) "● ${p.name}" else "○ ${p.name}", fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
                                                     Text("Local reference", style = MaterialTheme.typography.bodySmall)
                                                 }
@@ -327,7 +327,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        HorizontalDivider()
+                        Divider()
                         Text("Voice profiles and inference stay local. Only the neural model download requires internet. Use voice references you own or have permission to synthesize.", style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.height(12.dp))
                     }
