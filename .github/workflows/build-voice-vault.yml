@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - voice-vault-apk
     paths:
       - "voice-vault/**"
@@ -79,7 +80,7 @@ jobs:
           retention-days: 30
 
       - name: Publish rolling APK release
-        if: github.ref == 'refs/heads/voice-vault-apk'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/voice-vault-apk'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
