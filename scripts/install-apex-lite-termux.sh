@@ -24,7 +24,7 @@ else
   git clone --depth 1 --branch main "$REPO_URL" "$REPO"
 fi
 
-chmod +x "$REPO/scripts/apex-lite.mjs"
+chmod +x "$REPO/scripts/apex-lite.mjs" "$REPO/scripts/apex-router.mjs"
 
 if [ -n "${PREFIX:-}" ] && [ -d "$PREFIX/bin" ]; then
   BIN_DIR="$PREFIX/bin"
@@ -36,7 +36,7 @@ fi
 cat > "$BIN_DIR/apex" <<EOF2
 #!/usr/bin/env bash
 export APEX_LITE_HOME="$ROOT"
-exec node "$REPO/scripts/apex-lite.mjs" "\$@"
+exec node "$REPO/scripts/apex-router.mjs" "\$@"
 EOF2
 chmod +x "$BIN_DIR/apex"
 ln -sf "$BIN_DIR/apex" "$BIN_DIR/apex-lite"
@@ -72,7 +72,8 @@ printf '\nAPEX Lite installed.\n'
 printf 'Command: %s\n' "$BIN_DIR/apex"
 printf 'Pantheon: %s\n' "$REPO/config/forge-archetypes-extensions.json"
 printf 'Character lock: %s\n' "$REPO/config/forge-character-policy.json"
-printf 'Provider config: %s\n\n' "$PROVIDER"
+printf 'Provider config: %s\n' "$PROVIDER"
+printf 'Domain relevance router: ON\n\n'
 printf 'Zero-dollar mode: apex free\n'
 printf 'Provider status: apex providers\n'
 printf 'Chat: apex "your message"\n'
