@@ -44,13 +44,13 @@ else
   git -C "$REPO" pull --ff-only origin main
 fi
 
-chmod +x "$REPO/scripts/apex-lite.mjs"
+chmod +x "$REPO/scripts/apex-lite.mjs" "$REPO/scripts/apex-router.mjs"
 
-# Rebuild the global Termux launcher so it always points at the repaired checkout.
+# Rebuild the global Termux launcher through the domain-relevance router.
 cat > "$BIN_DIR/apex" <<EOF2
 #!/usr/bin/env bash
 export APEX_LITE_HOME="$ROOT"
-exec node "$REPO/scripts/apex-lite.mjs" "\$@"
+exec node "$REPO/scripts/apex-router.mjs" "\$@"
 EOF2
 chmod +x "$BIN_DIR/apex"
 ln -sf "$BIN_DIR/apex" "$BIN_DIR/apex-lite"
@@ -85,6 +85,7 @@ printf '\nAPEX Lite repair complete.\n'
 printf 'Repo: %s\n' "$REPO"
 printf 'Provider file: %s\n' "$PROVIDER"
 printf 'Launcher: %s\n' "$BIN_DIR/apex"
+printf 'Domain relevance router: ON\n'
 if [ "$STASHED" -eq 1 ]; then
   printf 'Saved old local edits in git stash: %s\n' "$STASH_NAME"
 fi
