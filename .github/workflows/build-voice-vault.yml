@@ -33,7 +33,7 @@ jobs:
       - name: Install Android NDK
         shell: bash
         run: |
-          yes | sdkmanager "ndk;28.0.13004108" >/dev/null
+          sdkmanager "ndk;28.0.13004108" >/dev/null
           echo "ANDROID_NDK=$ANDROID_HOME/ndk/28.0.13004108" >> "$GITHUB_ENV"
 
       - name: Clone pinned sherpa-onnx
